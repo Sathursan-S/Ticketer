@@ -54,7 +54,6 @@ builder.Services.AddCors(options =>
             .WithOrigins(
                 "http://localhost:3000", // React dev server
                 "http://localhost:8080"  // Vue dev server
-                "http://localhost:4200"  // Angular dev server
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
