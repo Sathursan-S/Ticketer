@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Docker project files
+docker-compose*.yml
+docker-compose*.override.yml
+.dockerignore
+Dockerfile*
+docker-compose.dcproj
+
+# Development files
+*.Development.json
+README.md
+LICENSE
+*.md

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketservice
+  namespace: ticket-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ticketservice
+  template:
+    metadata:
+      labels:
+        app: ticketservice
+    spec:
+      automountServiceAccountToken: false # Disable automounting service account
+      containers:
+      - name: ticketservice
+        image: ticketservice:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            ephemeral-storage: "1Gi"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+            ephemeral-storage: "500Mi"
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        envFrom:
+        - configMapRef:
+            name: ticketservice-config
+        - secretRef:
+            name: ticketservice-secrets
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticketservice
+  namespace: ticket-system
+spec:
+  selector:
+    app: ticketservice
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ticketservice-ingress
+  namespace: ticket-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: tickets.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ticketservice
+            port:
+              number: 80
