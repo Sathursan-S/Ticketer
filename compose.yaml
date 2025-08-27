@@ -111,10 +111,53 @@ services:
     networks:
       - ticketer-network
 
+  # Ticket Service
+  ticketservice:
+    image: ${DOCKER_REGISTRY-}ticketservice
+    build:
+      context: ./services/TicketService
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
+      - DatabaseProvider=PostgreSQL
+    depends_on:
+      ticketservice-db:
+        condition: service_healthy
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
+  ticketservice-db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=TicketServiceDb
+    volumes:
+      - ticketservice-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
+  # Booking Service
+  
+
 volumes:
   auth-db-data:
   events-db-data:
   notification-db-data:
+  ticketservice-db-data:
 
 networks:
   ticketer-network:
