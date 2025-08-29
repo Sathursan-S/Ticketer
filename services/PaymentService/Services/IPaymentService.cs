@@ -2,5 +2,5 @@
 
 public interface IPaymentService
 {
-    
+    Task<PaymentResultDto> ProcessPaymentAsync(ProcessPaymentDto dto);
 }
