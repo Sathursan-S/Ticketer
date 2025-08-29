@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookingService", "BookingService.csproj", "{FFC491B6-A8AE-4A7E-8A62-D0C2D8C2EC76}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedLibrary", "..\SharedLibrary\SharedLibrary.csproj", "{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{FFC491B6-A8AE-4A7E-8A62-D0C2D8C2EC76}.Release|x64.Build.0 = Release|Any CPU
 		{FFC491B6-A8AE-4A7E-8A62-D0C2D8C2EC76}.Release|x86.ActiveCfg = Release|Any CPU
 		{FFC491B6-A8AE-4A7E-8A62-D0C2D8C2EC76}.Release|x86.Build.0 = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|x64.Build.0 = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Debug|x86.Build.0 = Debug|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|Any CPU.Build.0 = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|x64.ActiveCfg = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|x64.Build.0 = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|x86.ActiveCfg = Release|Any CPU
+		{431FBA9C-98AD-4BA2-B4E6-F857C1539C93}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
