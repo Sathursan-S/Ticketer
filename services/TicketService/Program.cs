@@ -2,7 +2,12 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using RedLockNet;
+using RedLockNet.SERedis;
+using RedLockNet.SERedis.Configuration;
+using StackExchange.Redis;
 using TicketService;
+using TicketService.Application.Services;
 using TicketService.Extensions;
 using TicketService.Mappers;
 using TicketService.Repositoy;
@@ -95,9 +100,24 @@ builder.Services.AddDbContext<TicketDbContext>(options =>
 // Configure AutoMapper
 builder.Services.AddAutoMapper(typeof(MapperProfile));
 
+// Add Redis configuration
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(redisConnectionString);
+});
+
+// Add RedLock distributed lock
+builder.Services.AddSingleton<RedLockFactory>(sp =>
+{
+    var connectionMultiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+    return RedLockFactory.Create(new List<RedLockMultiplexer> { new(connectionMultiplexer) });
+});
+
 // Add application services
 builder.Services.AddScoped<ITicketRepository, TicketRepository>();
-builder.Services.AddScoped<ITicketService, TicketService.Services.TicketService>();
+builder.Services.AddScoped<ITicketService, TicketService.Application.Services.TicketService>();
 
 // Add health checks
 builder.Services.AddHealthChecks(builder.Configuration);

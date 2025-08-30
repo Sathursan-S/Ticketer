@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using HealthChecks.Redis;
 using System.Text.Json;
 
 namespace TicketService.Extensions;
@@ -17,6 +20,11 @@ public static class HealthCheckExtensions
         // Add database health check
         healthChecksBuilder.AddDbContextCheck<TicketDbContext>("database", 
             tags: new[] { "db", "data", "ready" });
+            
+        // Add Redis health check
+        var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        healthChecksBuilder.AddRedis(redisConnectionString, "redis", 
+            tags: new[] { "redis", "cache", "ready" });
 
         return services;
     }

@@ -1,9 +1,11 @@
+using SharedLibrary.Contracts.Messages;
 using TicketService.DTOs;
 
-namespace TicketService.Services;
+namespace TicketService.Application.Services;
 
 public interface ITicketService
 {
+    Task<HoldTicketResponse> HoldTicketsAsync(HoldTickets request);
     Task<IEnumerable<TicketResponse>> GetAllTicketsAsync();
     Task<TicketResponse?> GetTicketByIdAsync(Guid ticketId);
     Task<IEnumerable<TicketResponse>> GetTicketsByEventIdAsync(long eventId);
