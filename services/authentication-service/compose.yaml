@@ -3,6 +3,8 @@ services:
   auth-service:
     build:
       context: .
+      # Uncomment the line below to use the simplified Dockerfile if the layered one fails
+      # dockerfile: Dockerfile.simple
     restart: always
     ports:
       - 4040:4040
