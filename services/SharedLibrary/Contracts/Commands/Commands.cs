@@ -1,4 +1,4 @@
-﻿namespace BookingService.Controllers;
+﻿namespace SharedLibrary.Contracts.Commands;
 
 /// <summary>
 /// Command to hold tickets for a booking

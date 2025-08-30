@@ -1,9 +1,11 @@
-﻿namespace BookingService.Controllers;
+﻿using Microsoft.AspNetCore.Mvc;
+
+namespace BookingService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class PaymentController
+public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly ILogger<PaymentController> _logger;

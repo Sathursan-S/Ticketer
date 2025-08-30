@@ -5,6 +5,7 @@ public record HoldTickets
     public Guid BookingId { get; init; }
     public int EventId { get; init; }
     public int NumberOfTickets { get; init; }
+    public string CustomerId { get; init; } = string.Empty;
 }
 
 public record ProcessPayment
@@ -23,7 +24,7 @@ public record ReserveTickets
     public string CustomerId { get; init; } = string.Empty;
 }
 
-public record ReleseTickets
+public record ReleaseTickets
 {
     public Guid BookingId { get; init; }
     public int EventId { get; init; }

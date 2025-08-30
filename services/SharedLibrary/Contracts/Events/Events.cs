@@ -1,4 +1,4 @@
-﻿namespace BookingService.Controllers;
+﻿namespace SharedLibrary.Contracts.Events;
 
 /// <summary>
 /// Represents an event that is triggered when a booking is created.
@@ -76,15 +76,17 @@ public record TicketReservationFailedEvent(
 /// </summary>
 /// <param name="BookingId">The unique identifier of the booking.</param>
 /// <param name="PaymentIntentId">The unique identifier of the payment intent.</param>
-/// <param name="UserId">The identifier of the user who made the payment.</param>
+/// <param name="CustomerId">The identifier of the user who made the payment.</param>
 /// <param name="Amount">The amount that was paid.</param>
-/// <param name="PaymentStatus">The status of the payment.</param>
-public record PaymentProcessedEvent(
-    Guid BookingId,
-    Guid PaymentIntentId,
-    string UserId,
-    decimal Amount,
-    string PaymentStatus);
+/// <param name="PaymentMethod"></param>
+public record PaymentProcessedEvent
+{
+    public Guid BookingId { get; init; }
+    public string PaymentIntentId { get; init; }
+    public string CustomerId { get; init; }
+    public decimal Amount { get; init; }
+    public string PaymentMethod { get; init; }
+};
 
 
 /// <summary>
@@ -92,6 +94,9 @@ public record PaymentProcessedEvent(
 /// </summary>
 /// <param name="BookingId">The unique identifier of the booking.</param>
 /// <param name="Reason">The reason for the payment failure.</param>
-public record PaymentFailedEvent(
-    Guid BookingId,
-    string Reason);
+public record PaymentFailedEvent
+{
+    public Guid BookingId { get; init; }
+    public string PaymentIntentId { get; init; }
+    public string Reason { get; init; }
+};

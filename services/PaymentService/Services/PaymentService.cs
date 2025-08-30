@@ -7,10 +7,12 @@ public class PaymentService : IPaymentService
         // Simulate payment processing logic
         var result = new PaymentResultDto
         {
-            PaymentId = Guid.NewGuid(),
+            PaymentIntentId = Guid.NewGuid().ToString(),
             Status = "Success",
             Amount = dto.Amount,
-            BookingId = dto.BookingId
+            BookingId = dto.BookingId,
+            PaymentMethod = dto.PaymentMethod,
+            CustomerId = dto.CustomerId
         };
         return Task.FromResult(result);
     }
