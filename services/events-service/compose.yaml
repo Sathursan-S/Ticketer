@@ -5,7 +5,7 @@ services:
       context: .
     restart: always
     ports:
-      - 8081:8081
+      - 4041:4041
     depends_on:
       events-db:
         condition: service_healthy

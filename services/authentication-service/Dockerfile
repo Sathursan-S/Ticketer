@@ -9,7 +9,7 @@
 ################################################################################
 
 # Create a stage for resolving and downloading dependencies.
-FROM maven:3.9-eclipse-temurin-21 as deps
+FROM maven:3.9-eclipse-temurin-21 AS deps
 
 WORKDIR /build
 
