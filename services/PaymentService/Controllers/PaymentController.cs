@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using PaymentService.Domain;
+using PaymentService.Application.Services;
 
-namespace BookingService.Controllers;
+namespace PaymentService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

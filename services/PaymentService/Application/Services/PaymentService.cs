@@ -1,6 +1,6 @@
-﻿using BookingService.Domain;
+﻿using PaymentService.Domain;
 
-namespace BookingService.Application.Services;
+namespace PaymentService.Application.Services;
 
 public class PaymentService : IPaymentService
 {

@@ -1,4 +1,4 @@
-using BookingService.Application.Services;
+using PaymentService.Application.Services;
 using MassTransit;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -52,7 +52,7 @@ builder.Services.AddMassTransit(config =>
     });
 });
 
-builder.Services.AddSingleton<IPaymentService, BookingService.Application.Services.PaymentService>();
+builder.Services.AddSingleton<IPaymentService, PaymentService.Application.Services.PaymentService>();
 
 // Configure logging
 builder.Logging.ClearProviders();

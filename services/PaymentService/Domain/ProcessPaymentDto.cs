@@ -1,4 +1,4 @@
-﻿namespace BookingService.Domain;
+﻿namespace PaymentService.Domain;
 
 public class ProcessPaymentDto
 {

@@ -100,7 +100,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 5434:5432
+      - 5437:5432
     volumes:
       - notification-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -115,15 +115,19 @@ services:
   ticketservice:
     image: ${DOCKER_REGISTRY-}ticketservice
     build:
-      context: ./services/TicketService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/TicketService/Dockerfile
     ports:
       - "8082:80"  # Fixed to use standard HTTP port internally
-      - "8443:443"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=ticketservice-db;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
       - DatabaseProvider=PostgreSQL
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Username=guest
+      - RabbitMq__Password=guest
+      - RabbitMq__VirtualHost=/
     depends_on:
       ticketservice-db:
         condition: service_healthy
@@ -134,7 +138,7 @@ services:
     restart: unless-stopped
 
   ticketservice-db:
-    image: postgres:16-alpine
+    image: postgres:15
     ports:
       - "5435:5432"  # Changed from 5432:5432 to avoid conflict
     environment:
@@ -156,8 +160,8 @@ services:
   bookingservice:
     image: ${DOCKER_REGISTRY-}bookingservice
     build:
-      context: ./services/BookingService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/BookingService/Dockerfile
     ports:
       - "8083:80"  # Updated to use standard HTTP port internally
     depends_on:
@@ -167,7 +171,7 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - ASPNETCORE_URLS=http://+:80
       - MongoDB__ConnectionString=mongodb://bookingservice-mongodb:27017
       - MongoDB__DatabaseName=BookingServiceDb
       - MongoDB__BookingsCollectionName=Bookings
@@ -181,7 +185,7 @@ services:
     restart: unless-stopped
 
   bookingservice-db:
-    image: postgres:latest
+    image: postgres:15
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -202,14 +206,13 @@ services:
   paymentservice:
     image: ${DOCKER_REGISTRY-}paymentservice
     build:
-      context: ./services/PaymentService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/PaymentService/Dockerfile
     ports:
       - "8090:80"
-      - "8453:443"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - ASPNETCORE_URLS=http://+:80
       - RabbitMq__Host=rabbitmq  # Fixed to point to the correct RabbitMQ service
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
