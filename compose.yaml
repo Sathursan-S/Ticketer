@@ -80,7 +80,7 @@ services:
       context: ./services/notification-service
     restart: always
     ports:
-      - 8082:8082
+      - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
     depends_on:
       notification-db:
         condition: service_healthy
@@ -118,14 +118,16 @@ services:
       context: ./services/TicketService
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8082:80"  # Fixed to use standard HTTP port internally
       - "8443:443"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
+      - ConnectionStrings__DefaultConnection=Host=ticketservice-db;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
       - DatabaseProvider=PostgreSQL
     depends_on:
       ticketservice-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - ticketer-network
@@ -134,7 +136,7 @@ services:
   ticketservice-db:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5435:5432"  # Changed from 5432:5432 to avoid conflict
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
@@ -151,13 +153,101 @@ services:
     restart: unless-stopped
 
   # Booking Service
-  
+  bookingservice:
+    image: ${DOCKER_REGISTRY-}bookingservice
+    build:
+      context: ./services/BookingService
+      dockerfile: Dockerfile
+    ports:
+      - "8083:80"  # Updated to use standard HTTP port internally
+    depends_on:
+      bookingservice-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - MongoDB__ConnectionString=mongodb://bookingservice-mongodb:27017
+      - MongoDB__DatabaseName=BookingServiceDb
+      - MongoDB__BookingsCollectionName=Bookings
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Username=guest
+      - RabbitMq__Password=guest
+      - RabbitMq__VirtualHost=/
+      - ConnectionStrings__DefaultConnection=Host=bookingservice-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
+  bookingservice-db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=BookingServiceDb
+    ports:
+      - "5436:5432"  # Changed from 5432:5432 to avoid conflict
+    volumes:
+      - bookingservice-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
+  paymentservice:
+    image: ${DOCKER_REGISTRY-}paymentservice
+    build:
+      context: ./services/PaymentService
+      dockerfile: Dockerfile
+    ports:
+      - "8090:80"
+      - "8453:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - RabbitMq__Host=rabbitmq  # Fixed to point to the correct RabbitMQ service
+      - RabbitMq__Username=guest
+      - RabbitMq__Password=guest
+      - RabbitMq__VirtualHost=/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketer-network
+
 
 volumes:
   auth-db-data:
   events-db-data:
   notification-db-data:
   ticketservice-db-data:
+  bookingservice-db-data:
+  rabbitmq-data:
 
 networks:
   ticketer-network:
