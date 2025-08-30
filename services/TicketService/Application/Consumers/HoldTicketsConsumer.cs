@@ -32,6 +32,7 @@ public class HoldTicketsConsumer : IConsumer<HoldTickets>
                     "Successfully held {Count} tickets for event {EventId} for booking {BookingId}",
                     result.TicketIds.Count, result.EventId, context.Message.BookingId);
                 
+                // TODO: move price cal inside service
                 // Calculate total price (this would typically be based on actual ticket prices from the database)
                 decimal totalPrice = result.TicketIds.Count * 25.0m; // Simplified - $25 per ticket
                 

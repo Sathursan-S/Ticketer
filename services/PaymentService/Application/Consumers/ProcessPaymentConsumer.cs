@@ -9,7 +9,8 @@ namespace PaymentService.Application.Consumers;
 
 public class ProcessPaymentConsumer(
     IPaymentService _paymentService,
-    ILogger<ProcessPaymentConsumer> _logger) : IConsumer<ProcessPayment>
+    ILogger<ProcessPaymentConsumer> _logger
+    ) : IConsumer<ProcessPayment>
 {
     public async Task Consume(ConsumeContext<ProcessPayment> context)
     {
@@ -25,7 +26,7 @@ public class ProcessPaymentConsumer(
                 Amount = context.Message.Amount,
                 PaymentMethod = context.Message.PaymentMethod
             };
-            
+
             PaymentResultDto paymentResult = await _paymentService.ProcessPaymentAsync(processPaymentRequest);
 
             if (paymentResult.IsSuccess)
@@ -53,7 +54,14 @@ public class ProcessPaymentConsumer(
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            _logger.LogError(e, "An error occurred while processing payment for BookingId: {BookingId}", context.Message.BookingId);
+
+            await context.Publish(new PaymentFailedEvent
+            {
+                BookingId = context.Message.BookingId,
+                Reason = $"An error occurred while processing payment: {e.Message}"
+            });
+
             throw;
         }
     }
