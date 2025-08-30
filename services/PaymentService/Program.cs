@@ -7,6 +7,10 @@ using SharedLibrary.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure RabbitMQ settings
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection("RabbitMq"));
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
