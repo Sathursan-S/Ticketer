@@ -1,10 +1,10 @@
 ﻿using BookingService.Domain.Entities;
-using BookingService.Domain.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BookingService.Infrastructure.Settings;
 
 namespace BookingService.Repositories;
 

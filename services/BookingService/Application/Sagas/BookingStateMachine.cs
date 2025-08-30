@@ -1,42 +1,42 @@
 ﻿using MassTransit;
+using SharedLibrary.Contracts.Events;
 using SharedLibrary.Contracts.Messages;
 
-namespace BookingService.Controllers;
+namespace BookingService.Application.Sagas;
 
 public class BookingStateMachine : MassTransitStateMachine<BookingState>
 {
-    // states
+    // States
     public State BookingCreated { get; private set; }
-    public State TicketsHolded { get; private set; }
     public State ProcessingPayment { get; private set; }
     public State ConfirmingTickets { get; private set; }
     public State BookingCompleted { get; private set; }
     public State BookingFailed { get; private set; }
 
-    // events
+    // Events
     public Event<BookingCreatedEvent> BookingCreatedEvent { get; private set; }
-    public Event<PaymentProcessedEvent> PaymentProcessedEvent { get; private set; }
-    public Event<BookingFailedEvent> BookingFailedEvent { get; private set; }
-    public Event<BookingConfirmedEvent> BookingConfirmedEvent { get; private set; }
     public Event<TicketsReservedEvent> TicketsReservedEvent { get; private set; }
     public Event<TicketReservationFailedEvent> TicketReservationFailedEvent { get; private set; }
+    public Event<PaymentProcessedEvent> PaymentProcessedEvent { get; private set; }
     public Event<PaymentFailedEvent> PaymentFailedEvent { get; private set; }
+    public Event<BookingConfirmedEvent> BookingConfirmedEvent { get; private set; }
+    public Event<BookingFailedEvent> BookingFailedEvent { get; private set; }
 
     public BookingStateMachine()
     {
-        // map state to database
+        // Map saga state to DB
         InstanceState(x => x.CurrentState);
 
-        // correlate events to state instance
+        // Correlate events
         Event(() => BookingCreatedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => PaymentProcessedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => BookingFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => BookingConfirmedEvent, x => x.CorrelateById(context => context.Message.BookingId));
         Event(() => TicketsReservedEvent, x => x.CorrelateById(context => context.Message.BookingId));
         Event(() => TicketReservationFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
+        Event(() => PaymentProcessedEvent, x => x.CorrelateById(context => context.Message.BookingId));
         Event(() => PaymentFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
+        Event(() => BookingConfirmedEvent, x => x.CorrelateById(context => context.Message.BookingId));
+        Event(() => BookingFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
 
-        // Initialize transaction
+        // Start saga when booking is created
         Initially(
             When(BookingCreatedEvent)
                 .Then(context =>
@@ -51,56 +51,82 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                 {
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
-                    NumberOfTickets = context.Saga.NumberOfTickets
+                    NumberOfTickets = context.Saga.NumberOfTickets,
+                    CustomerId = context.Saga.CustomerId
                 }))
                 .TransitionTo(BookingCreated)
         );
-        // After booking is created, hold tickets
+
+        // When tickets are held or failed
         During(BookingCreated,
             When(TicketsReservedEvent)
-                .Then<BookingState, TicketsReservedEvent>(context =>
+                .Then(context =>
                 {
                     context.Saga.Tickets = context.Message.TicketIds;
                     context.Saga.TotalPrice = context.Message.TotalPrice;
                 })
-                .TransitionTo<BookingState, TicketsReservedEvent>(TicketsHolded)
                 .PublishAsync(context => context.Init<ProcessPayment>(new
                 {
                     BookingId = context.Saga.BookingId,
                     CustomerId = context.Saga.CustomerId,
                     TotalPrice = context.Saga.TotalPrice
                 }))
-                .TransitionTo<BookingState, TicketsReservedEvent>(ProcessingPayment),
+                .TransitionTo(ProcessingPayment),
+
             When(TicketReservationFailedEvent)
-                .TransitionTo<BookingState, TicketReservationFailedEvent>(BookingFailed)
+                .PublishAsync(context => context.Init<BookingFailedEvent>(new
+                {
+                    BookingId = context.Saga.BookingId,
+                    Reason = "Ticket reservation failed"
+                }))
+                .TransitionTo(BookingFailed)
                 .Finalize()
         );
-        // After tickets are holded, process payment
+
+        // Payment processing
         During(ProcessingPayment,
             When(PaymentProcessedEvent)
-                .Then<BookingState, PaymentProcessedEvent>(context =>
-                    {
-                        context.Saga.PaymentIntentId = context.Saga.PaymentIntentId;
-                    }
-                )
+                .Then(context =>
+                {
+                    context.Saga.PaymentIntentId = context.Message.PaymentIntentId;
+                })
                 .PublishAsync(context => context.Init<ReserveTickets>(new
                 {
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
                     TicketIds = context.Saga.Tickets,
-                    CustomerId = context.Saga.CustomerId,
+                    CustomerId = context.Saga.CustomerId
                 }))
-                .TransitionTo<BookingState, PaymentProcessedEvent>(ConfirmingTickets),
+                .TransitionTo(ConfirmingTickets),
+
             When(PaymentFailedEvent)
-                .PublishAsync(context => context.Init<ReleseTickets>(new
+                .PublishAsync(context => context.Init<ReleaseTickets>(new
                 {
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
                     TicketIds = context.Saga.Tickets,
                     Reason = "Payment failed"
                 }))
-                .TransitionTo<BookingState, PaymentFailedEvent>(BookingFailed)
+                .PublishAsync(context => context.Init<BookingFailedEvent>(new
+                {
+                    BookingId = context.Saga.BookingId,
+                    Reason = "Payment failed"
+                }))
+                .TransitionTo(BookingFailed)
                 .Finalize()
         );
+
+        // Confirm booking
+        During(ConfirmingTickets,
+            When(BookingConfirmedEvent)
+                .TransitionTo(BookingCompleted)
+                .Finalize(),
+
+            When(BookingFailedEvent)
+                .TransitionTo(BookingFailed)
+                .Finalize()
+        );
+
+        SetCompletedWhenFinalized();
     }
 }

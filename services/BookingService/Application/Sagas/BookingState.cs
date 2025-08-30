@@ -1,6 +1,6 @@
 ﻿using MassTransit;
 
-namespace BookingService.Controllers;
+namespace BookingService.Application.Sagas;
 
 public class BookingState : SagaStateMachineInstance
 {

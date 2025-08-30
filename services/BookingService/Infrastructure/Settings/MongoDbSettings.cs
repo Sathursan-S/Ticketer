@@ -1,4 +1,4 @@
-namespace BookingService.Domain.Settings;
+namespace BookingService.Infrastructure.Settings;
 
 public class MongoDbSettings
 {

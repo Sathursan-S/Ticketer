@@ -1,122 +1,108 @@
-using AutoMapper;
-using BookingService.Domain.Mappings;
-using BookingService.Domain.Settings;
-using BookingService.Repositories;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
+﻿using BookingService.Application.Sagas;
+using BookingService.HealthChecks;
+using BookingService.Infrastructure.Messaging;
+using BookingService.Infrastructure.Persistence.Saga;
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add MongoDB settings
-builder.Services.Configure<MongoDbSettings>(
-    builder.Configuration.GetSection("MongoDB"));
-
-// Register MongoDB repository
-builder.Services.AddSingleton<IBookingRepository, BookingRepositoryMongo>();
-builder.Services.AddAutoMapper(typeof(MappingProfile));
-// Add CORS policy
-builder.Services.AddCors(options =>
+// saga state db context
+builder.Services.AddDbContext<BookingSagaDbContext>(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-        policy => 
+    if (builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
+    {
+        options.UseInMemoryDatabase("BookingServiceDb");
+    }
+    else
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"), npgsqlOptions =>
         {
-            var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-            policy.WithOrigins(corsOrigins ?? Array.Empty<string>())
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorCodesToAdd: null);
         });
+    }
 });
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Configure JSON serialization if needed
-    })
-    .ConfigureApiBehaviorOptions(options =>
-    {
-        // Customize BadRequest responses when model validation fails
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            var problemDetails = new ValidationProblemDetails(context.ModelState)
-            {
-                Instance = context.HttpContext.Request.Path,
-                Status = StatusCodes.Status400BadRequest,
-                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1",
-                Detail = "Please refer to the errors property for additional details."
-            };
+// Configure RabbitMQ settings
+builder.Services.Configure<RabbitMqSettings>(builder.Configuration.GetSection("RabbitMq"));
 
-            return new BadRequestObjectResult(problemDetails)
-            {
-                ContentTypes = { "application/problem+json", "application/problem+xml" }
-            };
-        };
-    });
-
-builder.Services.AddSwaggerGen(c => 
+// MassTransit setup
+builder.Services.AddMassTransit(x =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = builder.Configuration["Swagger:ApiTitle"] ?? "BookingService API", 
-        Version = builder.Configuration["Swagger:ApiVersion"] ?? "v1",
-        Description = builder.Configuration["Swagger:ApiDescription"] ?? "Enterprise-level API for booking management",
-        Contact = new OpenApiContact
+    // Configure RabbitMQ
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+        
+        cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.VirtualHost, h =>
         {
-            Name = "API Support",
-            Email = "support@bookingservice.com"
-            // URL from configuration can be added here if needed
-        },
-        License = new OpenApiLicense
-        {
-            Name = "MIT License"
-            // URL from configuration can be added here if needed
-        }
-    });
-    
-    // Set the comments path for the Swagger JSON and UI
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
+            h.Username(rabbitMqSettings.Username);
+            h.Password(rabbitMqSettings.Password);
+        });
 
-    // Security definitions can be added here when authentication is implemented
-    // For now, we'll keep the API endpoints accessible without authentication
+        // Configure endpoints by convention
+        cfg.ConfigureEndpoints(context);
+    });
+
+    // Configure saga state machine
+    x.AddSagaStateMachine<BookingStateMachine, BookingState>()
+        .EntityFrameworkRepository(r =>
+        {
+            r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+            r.ExistingDbContext<BookingSagaDbContext>();
+            r.UsePostgres();
+        });
+
+    // Auto-discover consumers and message handlers in the assembly
+    x.SetKebabCaseEndpointNameFormatter();
+    x.AddSagas(typeof(Program).Assembly);
+    x.AddConsumers(typeof(Program).Assembly);
 });
 
-// Add repository and service registrations
-builder.Services.AddScoped<BookingService.Repositories.IBookingRepository, BookingService.Repositories.BookingRepository>();
-builder.Services.AddScoped<BookingService.Services.IBookingService, BookingService.Services.BookingService>();
+// Register RabbitMQ health check service
+builder.Services.AddSingleton(serviceProvider => 
+{
+    var rabbitMqSettings = serviceProvider.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+    var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
+    return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
+});
+
+// Register health checks
+builder.Services.AddHealthChecks()
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Add health checks endpoint
+app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI(c => 
+    Predicate = healthCheck => healthCheck.Tags.Contains("messaging"),
+    ResponseWriter = async (context, report) =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingService API v1");
-        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
-        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
-        c.EnableDeepLinking();
-        c.DisplayRequestDuration();
-    });
-}
-else
-{
-    // The default HSTS value is 30 days. You may want to change this for production scenarios.
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-
-// Use CORS with the policy defined above
-app.UseCors("AllowSpecificOrigins");
-
-app.UseRouting();
-// We'll add authentication later when it's implemented
-app.MapControllers();
+        context.Response.ContentType = "application/json";
+        
+        var result = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.ToString()
+            })
+        };
+        
+        await System.Text.Json.JsonSerializer.SerializeAsync(
+            context.Response.Body, 
+            result, 
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+});
 
 await app.RunAsync();
-

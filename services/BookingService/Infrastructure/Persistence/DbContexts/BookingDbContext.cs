@@ -1,7 +1,7 @@
 using BookingService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace BookingService.Domain.DbContexts;
+namespace BookingService.Infrastructure.Persistence.DbContexts;
 
 public class BookingDbContext : DbContext
 {

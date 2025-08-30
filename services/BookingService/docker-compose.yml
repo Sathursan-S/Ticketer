@@ -8,12 +8,18 @@ services:
       - "443:443"
     depends_on:
       - mongodb
+      - postgres
+      - rabbitmq
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80;https://+:443
       - MongoDB__ConnectionString=mongodb://mongodb:27017
       - MongoDB__DatabaseName=BookingServiceDb
       - MongoDB__BookingsCollectionName=Bookings
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Username=guest
+      - RabbitMq__Password=guest
+      - RabbitMq__VirtualHost=/
     networks:
       - booking-network
 
@@ -26,9 +32,37 @@ services:
     networks:
       - booking-network
 
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=BookingServiceDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - booking-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - booking-network
+
 networks:
   booking-network:
     driver: bridge
 
 volumes:
   mongodb-data:
+  postgres-data:
+  rabbitmq-data:
