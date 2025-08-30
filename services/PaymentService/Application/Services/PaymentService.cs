@@ -1,4 +1,6 @@
-﻿namespace BookingService.Controllers;
+﻿using BookingService.Domain;
+
+namespace BookingService.Application.Services;
 
 public class PaymentService : IPaymentService
 {

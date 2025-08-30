@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Update="Infrastructure\RabbitMqSettings.cs">
+      <Link>RabbitMqSettings.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

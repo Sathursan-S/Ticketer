@@ -1,4 +1,4 @@
-﻿namespace BookingService.Controllers;
+﻿namespace BookingService.Domain;
 
 public class PaymentResultDto
 {

@@ -1,8 +1,9 @@
-﻿using BookingService.Controllers;
+﻿using BookingService.Domain;
 using MassTransit;
-using SharedLibrary.Contracts.Commands;
 using SharedLibrary.Contracts.Events;
 using SharedLibrary.Contracts.Messages;
+using BookingService.Application.Services;
+
 
 namespace PaymentService.Application.Consumers;
 

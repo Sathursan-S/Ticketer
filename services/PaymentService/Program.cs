@@ -1,41 +1,70 @@
+using BookingService.Application.Services;
+using MassTransit;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
+using PaymentService.Application.Consumers;
+using SharedLibrary.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Payment Service API",
+        Version = "v1",
+        Description = "API for managing payments",
+        Contact = new OpenApiContact
+        {
+            Name = "Support",
+            Email = "support@paymentservice.com"
+        }
+    });
+});
+
+// MassTransit configuration
+builder.Services.AddMassTransit(config =>
+{
+    config.AddConsumer<ProcessPaymentConsumer>();
+    config.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+
+        cfg.Host(rabbitMqSettings.Host, h =>
+        {
+            h.Username(rabbitMqSettings.Username);
+            h.Password(rabbitMqSettings.Password);
+            h.UseCluster(c =>
+            {
+                c.Node(rabbitMqSettings.Host);
+            });
+        });
+
+        // Configure endpoints
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
+builder.Services.AddSingleton<IPaymentService, BookingService.Application.Services.PaymentService>();
+
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Configure middleware
+app.UseRouting();
+app.UseAuthorization();
+app.MapControllers();
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.MapOpenApi();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Payment Service API V1");
+});
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+await app.RunAsync();
