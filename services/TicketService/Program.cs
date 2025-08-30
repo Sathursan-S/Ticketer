@@ -1,18 +1,21 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using RedLockNet;
 using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
 using StackExchange.Redis;
 using TicketService;
+using TicketService.Application.Consumers;
 using TicketService.Application.Services;
 using TicketService.Extensions;
+using TicketService.HealthChecks;
+using TicketService.Infrastructure.Messaging;
 using TicketService.Mappers;
 using TicketService.Repositoy;
 using TicketService.Repository;
-using TicketService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -113,6 +116,49 @@ builder.Services.AddSingleton<RedLockFactory>(sp =>
 {
     var connectionMultiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
     return RedLockFactory.Create(new List<RedLockMultiplexer> { new(connectionMultiplexer) });
+});
+
+// Add RabbitMQ settings
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection("RabbitMq"));
+
+// Register RabbitMQ health check service
+builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider => 
+{
+    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>() 
+        ?? new RabbitMqSettings();
+    var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
+    return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
+});
+
+// Register RabbitMQ health check
+builder.Services.AddHealthChecks()
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
+
+// Add MassTransit with RabbitMQ
+builder.Services.AddMassTransit(busConfig => 
+{
+    // Register consumers
+    busConfig.AddConsumer<HoldTicketsConsumer>();
+    
+    // Configure RabbitMQ
+    busConfig.UsingRabbitMq((context, cfg) => 
+    {
+        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+        
+        cfg.Host(rabbitMqSettings.Host, h => 
+        {
+            h.Username(rabbitMqSettings.Username);
+            h.Password(rabbitMqSettings.Password);
+            h.UseCluster(c =>
+            {
+                c.Node(rabbitMqSettings.Host);
+            });
+        });
+        
+        // Configure endpoints
+        cfg.ConfigureEndpoints(context);
+    });
 });
 
 // Add application services

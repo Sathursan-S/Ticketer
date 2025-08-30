@@ -25,6 +25,8 @@ public static class HealthCheckExtensions
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
         healthChecksBuilder.AddRedis(redisConnectionString, "redis", 
             tags: new[] { "redis", "cache", "ready" });
+            
+        // RabbitMQ health check is registered separately in Program.cs
 
         return services;
     }
