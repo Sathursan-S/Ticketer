@@ -3,9 +3,11 @@ using BookingService.HealthChecks;
 using BookingService.Infrastructure.Messaging;
 using BookingService.Infrastructure.Persistence.Saga;
 using MassTransit;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,6 +78,65 @@ builder.Services.AddSingleton(serviceProvider =>
 builder.Services.AddHealthChecks()
     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" });
 
+// Add CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins",
+        policy => 
+        {
+            var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+            policy.WithOrigins(corsOrigins ?? Array.Empty<string>())
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        });
+});
+
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Customize BadRequest responses when model validation fails
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState)
+            {
+                Instance = context.HttpContext.Request.Path,
+                Status = StatusCodes.Status400BadRequest,
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1",
+                Detail = "Please refer to the errors property for additional details."
+            };
+
+            return new BadRequestObjectResult(problemDetails)
+            {
+                ContentTypes = { "application/problem+json", "application/problem+xml" }
+            };
+        };
+    });
+
+builder.Services.AddSwaggerGen(c => 
+{
+    c.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = builder.Configuration["Swagger:ApiTitle"] ?? "BookingService API", 
+        Version = builder.Configuration["Swagger:ApiVersion"] ?? "v1",
+        Description = builder.Configuration["Swagger:ApiDescription"] ?? "Enterprise-level API for booking management",
+        Contact = new OpenApiContact
+        {
+            Name = "API Support",
+            Email = "support@bookingservice.com"
+            // URL from configuration can be added here if needed
+        },
+    });
+    
+    // Set the comments path for the Swagger JSON and UI
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
+
+    // Security definitions can be added here when authentication is implemented
+    // For now, we'll keep the API endpoints accessible without authentication
+});
+
 var app = builder.Build();
 
 // Add health checks endpoint
@@ -104,5 +165,42 @@ app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.Hea
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
     }
 });
+
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => true,
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        
+        var result = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.ToString()
+            })
+        };
+        
+        await System.Text.Json.JsonSerializer.SerializeAsync(
+            context.Response.Body, 
+            result, 
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+});
+
+// Enable Swagger for API documentation
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
+    c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+});
+
+app.UseCors("AllowSpecificOrigins");
+app.MapControllers();
 
 await app.RunAsync();

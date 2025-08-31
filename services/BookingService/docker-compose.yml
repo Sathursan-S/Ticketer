@@ -1,36 +1,36 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - mongodb
-      - postgres
-      - rabbitmq
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80;https://+:443
-      - MongoDB__ConnectionString=mongodb://mongodb:27017
-      - MongoDB__DatabaseName=BookingServiceDb
-      - MongoDB__BookingsCollectionName=Bookings
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Username=guest
-      - RabbitMq__Password=guest
-      - RabbitMq__VirtualHost=/
-    networks:
-      - booking-network
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   depends_on:
+  #     - mongodb
+  #     - postgres
+  #     - rabbitmq
+  #   environment:
+  #     - ASPNETCORE_ENVIRONMENT=Production
+  #     - ASPNETCORE_URLS=http://+:80;https://+:443
+  #     - MongoDB__ConnectionString=mongodb://mongodb:27017
+  #     - MongoDB__DatabaseName=BookingServiceDb
+  #     - MongoDB__BookingsCollectionName=Bookings
+  #     - RabbitMq__Host=rabbitmq
+  #     - RabbitMq__Username=guest
+  #     - RabbitMq__Password=guest
+  #     - RabbitMq__VirtualHost=/
+  #   networks:
+  #     - booking-network
 
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb-data:/data/db
-    networks:
-      - booking-network
+  # mongodb:
+  #   image: mongo:latest
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb-data:/data/db
+  #   networks:
+  #     - booking-network
 
   postgres:
     image: postgres:latest

@@ -2,7 +2,7 @@ namespace BookingService.Domain.Dtos;
 
 public class CreateBookingDto
 {
-    public required string UserId { get; set; }
-    public int EventId { get; set; }
-    public required List<Guid> TicketIds { get; set; }
+    public required string CustomerId { get; set; }
+    public required int EventId { get; set; }
+    public required int NumberOfTickets { get; set; }
 }
