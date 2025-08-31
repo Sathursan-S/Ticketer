@@ -172,9 +172,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
-      - MongoDB__ConnectionString=mongodb://bookingservice-mongodb:27017
-      - MongoDB__DatabaseName=BookingServiceDb
-      - MongoDB__BookingsCollectionName=Bookings
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest

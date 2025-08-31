@@ -14,20 +14,14 @@ var builder = WebApplication.CreateBuilder(args);
 // saga state db context
 builder.Services.AddDbContext<BookingSagaDbContext>(options =>
 {
-    if (builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"), npgsqlOptions =>
     {
-        options.UseInMemoryDatabase("BookingServiceDb");
-    }
-    else
-    {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"), npgsqlOptions =>
-        {
-            npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorCodesToAdd: null);
-        });
-    }
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorCodesToAdd: null);
+        npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "saga");
+    });
 });
 
 // Configure RabbitMQ settings
@@ -41,7 +35,7 @@ builder.Services.AddMassTransit(x =>
     {
         var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
         
-        cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.VirtualHost, h =>
+        cfg.Host(rabbitMqSettings.Host, "/", h =>
         {
             h.Username(rabbitMqSettings.Username);
             h.Password(rabbitMqSettings.Password);
@@ -56,7 +50,10 @@ builder.Services.AddMassTransit(x =>
         .EntityFrameworkRepository(r =>
         {
             r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-            r.ExistingDbContext<BookingSagaDbContext>();
+            r.DatabaseFactory(() => new BookingSagaDbContext(
+                new DbContextOptionsBuilder<BookingSagaDbContext>()
+                    .UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"))
+                    .Options));
             r.UsePostgres();
         });
 
@@ -138,6 +135,25 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Initialize the database
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<BookingSagaDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Ensuring database is created...");
+        await context.Database.EnsureCreatedAsync();
+        logger.LogInformation("Database initialization completed.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while initializing the database: {Message}", ex.Message);
+        throw new InvalidOperationException("Failed to initialize the database. See inner exception for details.", ex);
+    }
+}
 
 // Add health checks endpoint
 app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

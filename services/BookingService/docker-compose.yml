@@ -44,6 +44,12 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - booking-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -57,6 +63,11 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - booking-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   booking-network:

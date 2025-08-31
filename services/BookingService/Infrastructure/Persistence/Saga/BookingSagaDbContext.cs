@@ -1,18 +1,25 @@
 ﻿using MassTransit;
 using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
-using MongoDB.Driver;
+using BookingService.Application.Sagas;
 
 namespace BookingService.Infrastructure.Persistence.Saga;
 
 public class BookingSagaDbContext : SagaDbContext
 {
-    public BookingSagaDbContext(DbContextOptions options) : base(options)
+    public BookingSagaDbContext(DbContextOptions<BookingSagaDbContext> options) : base(options)
     {
     }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        foreach (var sagaMap in Configurations)
+        {
+            sagaMap.Configure(modelBuilder);
+        }
+        
         modelBuilder.AddInboxStateEntity();
         modelBuilder.AddOutboxMessageEntity();
         modelBuilder.AddOutboxStateEntity();
