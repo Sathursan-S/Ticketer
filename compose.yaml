@@ -80,7 +80,7 @@ services:
       context: ./services/notification-service
     restart: always
     ports:
-      - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
+    - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
     depends_on:
       notification-db:
         condition: service_healthy
@@ -118,7 +118,7 @@ services:
       context: .
       dockerfile: ./services/TicketService/Dockerfile
     ports:
-      - "8082:80"  # Fixed to use standard HTTP port internally
+    - "8082:80"  # Fixed to use standard HTTP port internally
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
@@ -163,7 +163,7 @@ services:
       context: .
       dockerfile: ./services/BookingService/Dockerfile
     ports:
-      - "8083:80"  # Updated to use standard HTTP port internally
+    - "8040:8040"  # Updated to use standard HTTP port internally
     depends_on:
       bookingservice-db:
         condition: service_healthy
@@ -171,7 +171,7 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_URLS=http://+:8040
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
@@ -206,10 +206,10 @@ services:
       context: .
       dockerfile: ./services/PaymentService/Dockerfile
     ports:
-      - "8090:80"
+      - "8090:8090"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_URLS=http://+:8090
       - RabbitMq__Host=rabbitmq  # Fixed to point to the correct RabbitMQ service
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
@@ -239,6 +239,25 @@ services:
       retries: 5
     networks:
       - ticketer-network
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: ./services/Gateway.Api/Dockerfile
+    ports:
+    - "8091:8091"
+    environment:
+      ASPNETCORE_URLS: "http://+:8091"
+    depends_on:
+    - bookingservice
+    - ticketservice
+    - paymentservice
+    - events-service
+    - notification-service
+    - auth-service
+    networks:
+      - ticketer-network
+    restart: unless-stopped
 
 
 volumes:

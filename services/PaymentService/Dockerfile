@@ -25,7 +25,7 @@ RUN dotnet publish "PaymentService.csproj" -c Release -o /app/publish /p:UseAppH
 # Stage 3: Create the runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
-EXPOSE 80
+EXPOSE 8090
 EXPOSE 443
 
 # Copy the published files from the publish stage

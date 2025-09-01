@@ -7,11 +7,11 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8090:80"
+      - "8090:8090"
       - "8453:443"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - ASPNETCORE_URLS=http://+:8090
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
