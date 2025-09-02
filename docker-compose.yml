@@ -48,7 +48,7 @@ services:
     image: ${DOCKER_REGISTRY-}events-service
     restart: always
     ports:
-      - 8081:8081
+      - 4041:4041
     depends_on:
       events-db:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
     image: ${DOCKER_REGISTRY-}notification-service
     restart: always
     ports:
-    - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
+    - 4042:4042
     depends_on:
       notification-db:
         condition: service_healthy
