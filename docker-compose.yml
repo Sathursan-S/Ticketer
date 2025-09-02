@@ -5,8 +5,8 @@ services:
   auth-service:
     build:
       context: ./services/authentication-service
-      dockerfile: ./services/authentication-service/Dockerfile
-    image: ticketer-authentication-service:latest
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY-}auth-service
     restart: always
     ports:
       - 4040:4040
@@ -43,9 +43,9 @@ services:
   # -------------------- Events Service --------------------
   events-service:
     build:
-      context: .
-      dockerfile: ./services/EventsService/Dockerfile
-    image: ticketer-events-service:latest
+      context: ./services/events-service
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY-}events-service
     restart: always
     ports:
       - 8081:8081
@@ -83,8 +83,8 @@ services:
   notification-service:
     build:
       context: ./services/notification-service
-      dockerfile: ./services/notification-service/Dockerfile
-    image: ticketer-notification-service:latest
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY-}notification-service
     restart: always
     ports:
     - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
@@ -120,7 +120,7 @@ services:
 
   # Ticket Service
   ticketservice:
-    image: ${DOCKER_REGISTRY-}ticketr-ticket-service
+    image: ${DOCKER_REGISTRY-}ticket-service
     build:
       context: .
       dockerfile: ./services/TicketService/Dockerfile
@@ -165,12 +165,12 @@ services:
 
   # Booking Service
   bookingservice:
-    image: ${DOCKER_REGISTRY-}ticketr-booking-service
+    image: ${DOCKER_REGISTRY-}booking-service
     build:
       context: .
       dockerfile: ./services/BookingService/Dockerfile
     ports:
-    - "8040:8040"  # Updated to use standard HTTP port internally
+    - "8080:8080"  # Updated to use standard HTTP port internally
     depends_on:
       bookingservice-db:
         condition: service_healthy
@@ -178,12 +178,12 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8040
+      - ASPNETCORE_URLS=http://+:80
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
       - RabbitMq__VirtualHost=/
-      - ConnectionStrings__DefaultConnection=Host=bookingservice-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;
+      - ConnectionStrings__PostgresSQL=Host=bookingservice-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;
     networks:
       - ticketer-network
     restart: unless-stopped
@@ -208,7 +208,7 @@ services:
     restart: unless-stopped
 
   paymentservice:
-    image: ${DOCKER_REGISTRY-}ticketr-payment-service
+    image: ${DOCKER_REGISTRY-}payment-service
     build:
       context: .
       dockerfile: ./services/PaymentService/Dockerfile
@@ -248,7 +248,7 @@ services:
       - ticketer-network
 
   apigateway:
-    image: ${DOCKER_REGISTRY-}ticketr-api-gateway
+    image: ${DOCKER_REGISTRY-}ticketer-api-gateway
     build:
       context: .
       dockerfile: ./services/Gateway.Api/Dockerfile
