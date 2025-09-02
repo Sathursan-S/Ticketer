@@ -1,6 +1,7 @@
 # Docker Compose file for the entire Ticketer application
+
 services:
-  # Authentication Service
+  # -------------------- Authentication Service --------------------
   auth-service:
     build:
       context: ./services/authentication-service
@@ -37,10 +38,9 @@ services:
     networks:
       - ticketer-network
 
-  # Events Service
+  # -------------------- Events Service --------------------
   events-service:
     build:
-      context: ./services/events-service
     restart: always
     ports:
       - 8081:8081
@@ -241,13 +241,15 @@ services:
       - ticketer-network
 
   apigateway:
+    image: ${DOCKER_REGISTRY-}gatewayapi
     build:
       context: .
       dockerfile: ./services/Gateway.Api/Dockerfile
     ports:
-    - "8091:8091"
+    - "5000:80"
     environment:
-      ASPNETCORE_URLS: "http://+:8091"
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
     depends_on:
     - bookingservice
     - ticketservice

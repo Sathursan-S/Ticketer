@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: ticketer
+data:
+  RABBITMQ_DEFAULT_USER: "guest"
+  RABBITMQ_DEFAULT_PASS: "guest"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: ticketer
+data:
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "postgres"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: booking-service-config
+  namespace: ticketer
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:80"
+  RabbitMq__Host: "rabbitmq-service"
+  RabbitMq__Username: "guest"
+  RabbitMq__Password: "guest"
+  RabbitMq__VirtualHost: "/"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticket-service-config
+  namespace: ticketer
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:80"
+  DatabaseProvider: "PostgreSQL"
+  RabbitMq__Host: "rabbitmq-service"
+  RabbitMq__Username: "guest"
+  RabbitMq__Password: "guest"
+  RabbitMq__VirtualHost: "/"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  namespace: ticketer
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:80"
+  RabbitMq__Host: "rabbitmq-service"
+  RabbitMq__Username: "guest"
+  RabbitMq__Password: "guest"
+  RabbitMq__VirtualHost: "/"
