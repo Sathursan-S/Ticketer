@@ -112,7 +112,7 @@ app.MapGet("/", () => Results.Ok(new { status = "ok", service = "Gateway.Api" })
    .WithDescription("Returns status information about the gateway");
 
 // Health check endpoints
-app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     ResponseWriter = async (context, report) =>
     {
