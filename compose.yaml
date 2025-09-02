@@ -5,6 +5,8 @@ services:
   auth-service:
     build:
       context: ./services/authentication-service
+      dockerfile: ./services/authentication-service/Dockerfile
+    image: ticketer-authentication-service:latest
     restart: always
     ports:
       - 4040:4040
@@ -41,6 +43,9 @@ services:
   # -------------------- Events Service --------------------
   events-service:
     build:
+      context: .
+      dockerfile: ./services/EventsService/Dockerfile
+    image: ticketer-events-service:latest
     restart: always
     ports:
       - 8081:8081
@@ -78,6 +83,8 @@ services:
   notification-service:
     build:
       context: ./services/notification-service
+      dockerfile: ./services/notification-service/Dockerfile
+    image: ticketer-notification-service:latest
     restart: always
     ports:
     - 8084:8082  # Changed from 8082:8082 to avoid conflict with ticketservice
@@ -113,7 +120,7 @@ services:
 
   # Ticket Service
   ticketservice:
-    image: ${DOCKER_REGISTRY-}ticketservice
+    image: ${DOCKER_REGISTRY-}ticketr-ticket-service
     build:
       context: .
       dockerfile: ./services/TicketService/Dockerfile
@@ -158,7 +165,7 @@ services:
 
   # Booking Service
   bookingservice:
-    image: ${DOCKER_REGISTRY-}bookingservice
+    image: ${DOCKER_REGISTRY-}ticketr-booking-service
     build:
       context: .
       dockerfile: ./services/BookingService/Dockerfile
@@ -201,7 +208,7 @@ services:
     restart: unless-stopped
 
   paymentservice:
-    image: ${DOCKER_REGISTRY-}paymentservice
+    image: ${DOCKER_REGISTRY-}ticketr-payment-service
     build:
       context: .
       dockerfile: ./services/PaymentService/Dockerfile
@@ -241,7 +248,7 @@ services:
       - ticketer-network
 
   apigateway:
-    image: ${DOCKER_REGISTRY-}gatewayapi
+    image: ${DOCKER_REGISTRY-}ticketr-api-gateway
     build:
       context: .
       dockerfile: ./services/Gateway.Api/Dockerfile
