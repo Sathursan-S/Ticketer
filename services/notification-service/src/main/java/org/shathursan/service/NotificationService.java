@@ -1,7 +1,7 @@
 package org.shathursan.service;
 
 import org.shathursan.entity.Notification;
-import org.shathursan.repository.NotificationRepository;
+import org.shathursan.respository.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
