@@ -1,79 +1,80 @@
 services:
-  app:
-    build:
-      context: ../../
-      dockerfile: ./services/BookingService/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      # - mongodb
-      - postgres
-      - rabbitmq
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80;https://+:443
-      - MongoDB__ConnectionString=mongodb://mongodb:27017
-      - MongoDB__DatabaseName=BookingServiceDb
-      - MongoDB__BookingsCollectionName=Bookings
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Username=guest
-      - RabbitMq__Password=guest
-      - RabbitMq__VirtualHost=/
-    networks:
-      - booking-network
+    app:
+        build:
+            context: ../../
+            dockerfile: ./services/BookingService/Dockerfile
+        ports:
+            - "8080:80"
+        depends_on:
+            # - mongodb
+            postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+        restart: on-failure
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Docker
+            - ASPNETCORE_URLS=http://+:80
+            - RabbitMq__Host=rabbitmq
+            - RabbitMq__Username=guest
+            - RabbitMq__Password=guest
+            - RabbitMq__VirtualHost=/
+            - RabbitMq__Port=5672
+            - ConnectionStrings__PostgresSQL=Host=postgres;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;
+        networks:
+            - booking-network
 
-  # mongodb:
-  #   image: mongo:latest
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - mongodb-data:/data/db
-  #   networks:
-  #     - booking-network
+    # mongodb:
+    #   image: mongo:latest
+    #   ports:
+    #     - "27017:27017"
+    #   volumes:
+    #     - mongodb-data:/data/db
+    #   networks:
+    #     - booking-network
 
-  postgres:
-    image: postgres:latest
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=BookingServiceDb
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - booking-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    postgres:
+        image: postgres:latest
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=BookingServiceDb
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        networks:
+            - booking-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "5672:5672"   # AMQP protocol port
-      - "15672:15672" # Management UI
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    networks:
-      - booking-network
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    rabbitmq:
+        image: rabbitmq:3-management
+        environment:
+            - RABBITMQ_DEFAULT_USER=guest
+            - RABBITMQ_DEFAULT_PASS=guest
+        ports:
+            - "5672:5672" # AMQP protocol port
+            - "15672:15672" # Management UI
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        networks:
+            - booking-network
+        healthcheck:
+            test: rabbitmq-diagnostics -q ping
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
 networks:
-  booking-network:
-    driver: bridge
+    booking-network:
+        driver: bridge
 
 volumes:
-  mongodb-data:
-  postgres-data:
-  rabbitmq-data:
+    mongodb-data:
+    postgres-data:
+    rabbitmq-data:
