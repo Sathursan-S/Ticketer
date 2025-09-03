@@ -21,18 +21,22 @@ public class PaymentListeners {
   public void onPaymentSucceeded(@Payload PaymentSucceeded m) {
     log.info(" Payment Succeeded booking={} customer={} amount={} {}",
         m.getBookingId(), m.getCustomerId(), m.getAmount(), m.getCurrency());
-    svc.paymentSucceeded(
-        m.getBookingId(), m.getCustomerId(),
-        m.getPaymentIntentId(), m.getAmount(), m.getCurrency(), m.getPaidAtUtc()
-    );
+    svc.sendNotification(new NotificationRequest(
+        m.getCustomerId().toString(),
+        "Payment succeeded",
+        "Booking " + m.getBookingId() + " paid " + m.getAmount() + " " + m.getCurrency() +
+            " (intent " + m.getPaymentIntentId() + ")"
+    ));
   }
 
   @RabbitListener(queues = RabbitConfig.Q_FAILED)
   public void onPaymentFailed(@Payload PaymentFailed m) {
     log.warn(" Payment Failed booking={} customer={} reason={}",
         m.getBookingId(), m.getCustomerId(), m.getReason());
-    svc.paymentFailed(
-        m.getBookingId(), m.getCustomerId(), m.getReason(), m.getFailedAtUtc()
-    );
+    svc.sendNotification(new NotificationRequest(
+        m.getCustomerId().toString(),
+        "Payment failed",
+        "Booking " + m.getBookingId() + " failed: " + m.getReason()
+    ));
   }
 }
