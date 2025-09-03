@@ -9,4 +9,10 @@ public class NotificationRequest {
   private String messageSubject;
   private String messageBody;
 
+  public NotificationRequest(String recipient, String messageSubject, String messageBody) {
+    this.recipient = recipient;
+    this.messageSubject = messageSubject;
+    this.messageBody = messageBody;
+  }
+
 }

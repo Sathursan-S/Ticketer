@@ -4,6 +4,7 @@ import org.shathursan.config.RabbitConfig;
 import org.shathursan.contracts.PaymentFailed;
 import org.shathursan.contracts.PaymentSucceeded;
 import org.shathursan.service.NotificationService;
+import org.shathursan.dto.request.NotificationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
