@@ -19,13 +19,13 @@ allow_k8s_contexts('docker-desktop')  # Add your context here if different
 
 # Load k8s resources from YAML files
 k8s_yaml([
-    'k8s/namespace.yaml',
-    'k8s/configmaps.yaml',
-    'k8s/gateway-config.yaml', 
-    'k8s/storage.yaml',
-    'k8s/services.yaml',
-    'k8s/deployments.yaml',
-    'k8s/ingress.yaml'
+    'k8s/old/namespace.yaml',
+    'k8s/old/configmaps.yaml',
+    'k8s/old/gateway-config.yaml', 
+    'k8s/old/storage.yaml',
+    'k8s/old/services.yaml',
+    'k8s/old/deployments.yaml',
+    'k8s/old/ingress.yaml'
 ])
 
 # Build images for .NET services with live update
@@ -72,6 +72,8 @@ docker_build(
         sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
     ]
 )
+
+docker_compose('./docker-compose.yml')
 
 # Configure resource settings
 # BookingService resource
