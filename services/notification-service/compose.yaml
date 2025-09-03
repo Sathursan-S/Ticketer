@@ -14,9 +14,15 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-    networks:
-      - ticketer-network
 
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
+      - SPRING_RABBITMQ_VIRTUAL_HOST=/
+  networks:
+    - ticketer-network
+   
   notification-db:
     image: postgres:15
     restart: always

@@ -41,6 +41,7 @@ services:
   # -------------------- Events Service --------------------
   events-service:
     build:
+      context: ./services/events-service
     restart: always
     ports:
       - 8081:8081

@@ -1,29 +1,41 @@
 package org.shathursan.service;
 
-import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
-import org.shathursan.dto.request.NotificationRequest;
 import org.shathursan.entity.Notification;
-import org.shathursan.respository.NotificationRepository;
+import org.shathursan.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
+  private final NotificationRepository repo;
+  public NotificationService(NotificationRepository repo) { this.repo = repo; }
 
-  private final NotificationRepository notificationRepository;
-  private final EmailService emailService;
-
-  public Notification sendNotification(NotificationRequest request) {
-    Notification notification = Notification.builder()
-        .recipient(request.getRecipient())
-        .messageSubject(request.getMessageSubject())
-        .messageBody(request.getMessageBody())
-        .sentAt(LocalDateTime.now())
+  @Transactional
+  public void paymentSucceeded(UUID bookingId, UUID customerId, String paymentIntentId,
+                               double amount, String currency, java.time.Instant paidAtUtc) {
+    var n = Notification.builder()
+        .recipient(customerId.toString())
+        .messageSubject("Payment succeeded")
+        .messageBody("Booking " + bookingId + " paid " + amount + " " + currency +
+                     " (intent " + paymentIntentId + ")")
+        .sentAt(LocalDateTime.now(ZoneOffset.UTC))
         .build();
+    repo.save(n);
+  }
 
-    emailService.sendEmail(notification.getRecipient(), notification.getMessageSubject(),
-        notification.getMessageBody());
-    return notificationRepository.save(notification);
+  @Transactional
+  public void paymentFailed(UUID bookingId, UUID customerId, String reason,
+                            java.time.Instant failedAtUtc) {
+    var n = Notification.builder()
+        .recipient(customerId.toString())
+        .messageSubject("Payment failed")
+        .messageBody("Booking " + bookingId + " failed: " + reason)
+        .sentAt(LocalDateTime.now(ZoneOffset.UTC))
+        .build();
+    repo.save(n);
   }
 }
