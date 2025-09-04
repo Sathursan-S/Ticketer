@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,8 +12,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentFailed {
-  @JsonProperty("BookingId")   private UUID bookingId;
-  @JsonProperty("CustomerId")  private UUID customerId;
-  @JsonProperty("Reason")      private String reason;
-  @JsonProperty("FailedAtUtc") private Instant failedAtUtc;
+    @JsonProperty("BookingId")
+    public UUID bookingId;
+    @JsonProperty("CustomerId")
+    public String customerId;
+    @JsonProperty("Reason")
+    public String reason;
+    @JsonProperty("FailedAtUtc")
+    public Instant failedAtUtc;
 }

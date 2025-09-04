@@ -12,31 +12,43 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PaymentListeners {
-  private static final Logger log = LoggerFactory.getLogger(PaymentListeners.class);
-  private final NotificationService svc;
+    private static final Logger log = LoggerFactory.getLogger(PaymentListeners.class);
+    private final NotificationService svc;
 
-  public PaymentListeners(NotificationService svc) { this.svc = svc; }
+    public PaymentListeners(NotificationService svc) {
+        this.svc = svc;
+    }
 
-  @RabbitListener(queues = RabbitConfig.Q_SUCCESS)
-  public void onPaymentSucceeded(PaymentSucceeded m) {
-    log.info(" Payment Succeeded booking={} customer={} amount={} {}",
-        m.getBookingId(), m.getCustomerId(), m.getAmount(), m.getCurrency());
-    svc.sendNotification(new NotificationRequest(
-        m.getCustomerId().toString(),
-        "Payment succeeded",
-        "Booking " + m.getBookingId() + " paid " + m.getAmount() + " " + m.getCurrency() +
-            " (intent " + m.getPaymentIntentId() + ")"
-    ));
-  }
+    @RabbitListener(queues = RabbitConfig.Q_SUCCESS)
+    public void onPaymentSucceeded(PaymentSucceeded m) {
+        log.info(" Payment Succeeded booking={} customer={} amount={} {}",
+                m.getBookingId(), m.getCustomerId(), m.getAmount());
+        try {
+            svc.sendNotification(new NotificationRequest(
+                    m.getCustomerId().toString(),
+                    "Payment succeeded",
+                    "Booking " + m.getBookingId() + " paid " + m.getAmount() + " " +
+                            " (intent " + m.getPaymentIntentId() + ")"
+            ));
+        } catch (Exception ex) {
+            log.error("Failed to send notification for booking={} customer={}",
+                    m.getBookingId(), m.getCustomerId(), ex);
+        }
+    }
 
-  @RabbitListener(queues = RabbitConfig.Q_FAILED)
-  public void onPaymentFailed(PaymentFailed m) {
-    log.warn(" Payment Failed booking={} customer={} reason={}",
-        m.getBookingId(), m.getCustomerId(), m.getReason());
-    svc.sendNotification(new NotificationRequest(
-        m.getCustomerId().toString(),
-        "Payment failed",
-        "Booking " + m.getBookingId() + " failed: " + m.getReason()
-    ));
-  }
+    @RabbitListener(queues = RabbitConfig.Q_FAILED)
+    public void onPaymentFailed(PaymentFailed m) {
+        try {
+            log.warn(" Payment Failed booking={} customer={} reason={}",
+                    m.getBookingId(), m.getCustomerId(), m.getReason());
+            svc.sendNotification(new NotificationRequest(
+                    m.getCustomerId().toString(),
+                    "Payment failed",
+                    "Booking " + m.getBookingId() + " failed: " + m.getReason()
+            ));
+        } catch (Exception ex) {
+            log.error("Failed to send notification for booking={} customer={}",
+                    m.getBookingId(), m.getCustomerId(), ex);
+        }
+    }
 }

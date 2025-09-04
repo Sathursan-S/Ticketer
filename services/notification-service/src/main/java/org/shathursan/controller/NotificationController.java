@@ -17,18 +17,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class NotificationController {
 
-  private final NotificationService notificationService;
+    private final NotificationService notificationService;
 
-  @PostMapping(ApiEndpoints.GENERATE)
-  public ResponseEntity<NotificationResponse> sendNotification(@RequestBody NotificationRequest request) {
-    Notification notification = notificationService.sendNotification(request);
-    NotificationResponse response = new NotificationResponse(
-        200,
-        "Notification sent successfully",
-        notification
-    );
-    return ResponseEntity.ok(response);
-  }
-
-
+    @PostMapping(ApiEndpoints.GENERATE)
+    public ResponseEntity<NotificationResponse> sendNotification(@RequestBody NotificationRequest request) {
+        try {
+            Notification notification = notificationService.sendNotification(request);
+            NotificationResponse response = new NotificationResponse(
+                    200,
+                    "Notification sent successfully",
+                    notification
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            NotificationResponse errorResponse = new NotificationResponse(
+                    500,
+                    "Failed to send notification: " + e.getMessage(),
+                    null
+            );
+            return ResponseEntity.status(500).body(errorResponse);
+        }
+    }
 }
