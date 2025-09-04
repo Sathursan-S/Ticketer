@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-db
+  labels:
+    app: events-db
+spec:
+  selector:
+    app: events-db
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
