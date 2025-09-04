@@ -32,7 +32,7 @@ builder.Services.AddMassTransit(x =>
         .EntityFrameworkRepository(r =>
         {
             r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-            r.DatabaseFactory(provider =>
+            r.DatabaseFactory(provider => () =>
                 provider.GetRequiredService<BookingSagaDbContext>());
             r.UsePostgres();
         });
@@ -61,7 +61,7 @@ builder.Services.AddMassTransit(x =>
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         cfg.UseCircuitBreaker(cb =>
         {
-            cb.TripThreshold = 0.15;
+            cb.TripThreshold = (int)0.15;
             cb.ActiveThreshold = 10;
             cb.ResetInterval = TimeSpan.FromMinutes(1);
         });
@@ -77,7 +77,7 @@ builder.Services.AddSingleton(sp =>
 {
     var mq = sp.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
     var logger = sp.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
-    return new RabbitMqHealthCheck(logger, mq.Host, mq.Port);
+    return new RabbitMqHealthCheck(logger, mq.Host, (int)mq.Port);
 });
 
 // -------------------- Health Checks --------------------
