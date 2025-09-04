@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using PaymentService.Application.Consumers;
 using SharedLibrary.Infrastructure;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Exporter;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +62,22 @@ builder.Services.AddSingleton<IPaymentService, PaymentService.Application.Servic
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+
+// Configure OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName: "PaymentService"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddSource("MassTransit")
+        .AddConsoleExporter()
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddConsoleExporter()
+        .AddOtlpExporter()
+        .AddPrometheusExporter());
 
 var app = builder.Build();
 

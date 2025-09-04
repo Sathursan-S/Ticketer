@@ -4,6 +4,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
 using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
 using StackExchange.Redis;
@@ -16,6 +17,9 @@ using TicketService.Infrastructure.Messaging;
 using TicketService.Mappers;
 using TicketService.Repositoy;
 using TicketService.Repository;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -199,6 +203,22 @@ builder.Services.AddScoped<ITicketService, TicketService.Application.Services.Ti
 
 // Add health checks
 builder.Services.AddHealthChecks(builder.Configuration);
+
+// Configure OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName: "TicketService"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddSource("MassTransit")
+        .AddConsoleExporter()
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddConsoleExporter()
+        .AddOtlpExporter()
+        .AddPrometheusExporter());
 
 // Configure logging
 builder.Logging.ClearProviders();

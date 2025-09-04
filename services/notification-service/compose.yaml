@@ -1,4 +1,4 @@
-# Docker Compose file for Notification Service
+# Docker Compose file for Notification Service with Observability
 services:
   notification-service:
     build:
@@ -9,11 +9,18 @@ services:
     depends_on:
       notification-db:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://notification-db:5432/notification_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - OTEL_SERVICE_NAME=notification-service
+      - OTEL_TRACES_EXPORTER=jaeger
+      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - OTEL_METRICS_EXPORTER=prometheus
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
     networks:
       - ticketer-network
 
@@ -36,8 +43,54 @@ services:
     networks:
       - ticketer-network
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - 16686:16686
+      - 14268:14268
+      - 14250:14250
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - ticketer-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - ticketer-network
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - ticketer-network
+
 volumes:
   notification-db-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   ticketer-network:

@@ -33,3 +33,23 @@ data:
         static_configs:
           - targets: ['gateway-api:80']
         metrics_path: '/metrics'
+
+      - job_name: 'authentication-service'
+        static_configs:
+          - targets: ['authentication-service:4040']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'events-service'
+        static_configs:
+          - targets: ['events-service:4041']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'notification-service'
+        static_configs:
+          - targets: ['notification-service:4042']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'payment-service'
+        static_configs:
+          - targets: ['payment-service:8090']
+        metrics_path: '/metrics'

@@ -44,6 +44,8 @@ spec:
               value: ":9411"
             - name: MEMORY_MAX_TRACES
               value: "50000"
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
           resources:
             requests:
               cpu: "200m"

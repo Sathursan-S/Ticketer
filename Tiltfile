@@ -35,6 +35,7 @@ k8s_yaml([
     'k8s/monitoring/prometheus-service.yaml',
     'k8s/monitoring/grafana-deployment.yaml',
     'k8s/monitoring/grafana-service.yaml',
+    'k8s/monitoring/grafana-datasources.yaml',
     'k8s/monitoring/jaeger-deployment.yaml',
     'k8s/monitoring/jaeger-service.yaml',
     'k8s/monitoring/jaeger-ui-service.yaml',

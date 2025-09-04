@@ -10,6 +10,8 @@ using Microsoft.OpenApi.Models;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,23 +111,14 @@ builder.Services.AddOpenTelemetry()
             tracing.AddConsoleExporter();
         }
 
-        // Configure Jaeger exporter if enabled
-        if (builder.Configuration.GetValue("OpenTelemetry:Jaeger:Enabled", false))
-        {
-            var jaegerHost = builder.Configuration["OpenTelemetry:Jaeger:AgentHost"] ?? "localhost";
-            var jaegerPort = builder.Configuration.GetValue("OpenTelemetry:Jaeger:AgentPort", 6831);
-            
-            tracing.AddJaegerExporter(jaegerOptions =>
-            {
-                jaegerOptions.AgentHost = jaegerHost;
-                jaegerOptions.AgentPort = jaegerPort;
-                jaegerOptions.MaxPayloadSizeInBytes = builder.Configuration.GetValue("OpenTelemetry:Jaeger:MaxPayloadSizeInBytes", 4096);
-                jaegerOptions.ExportProcessorType = builder.Configuration["OpenTelemetry:Jaeger:ExportProcessorType"] == "Batch" 
-                    ? ExportProcessorType.Batch 
-                    : ExportProcessorType.Simple;
-            });
-        }
-    });
+        // Add OTLP exporter
+        tracing.AddOtlpExporter();
+    })
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddConsoleExporter()
+        .AddOtlpExporter()
+        .AddPrometheusExporter());
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
