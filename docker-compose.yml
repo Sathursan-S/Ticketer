@@ -180,6 +180,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
@@ -188,6 +190,11 @@ services:
       - RabbitMq__Password=guest
       - RabbitMq__VirtualHost=/
       - ConnectionStrings__PostgresSQL=Host=bookingservice-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;
+      - OpenTelemetry__ServiceName=BookingService
+      - OpenTelemetry__EnableConsoleExporter=true
+      - OpenTelemetry__Jaeger__Enabled=true
+      - OpenTelemetry__Jaeger__AgentHost=jaeger
+      - OpenTelemetry__Jaeger__AgentPort=6831
     networks:
       - ticketer-network
     restart: unless-stopped
@@ -277,6 +284,25 @@ services:
       - "8081:8081"
     depends_on:
       - redis
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+    
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
     networks:
       - ticketer-network
     restart: unless-stopped

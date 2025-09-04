@@ -1,0 +1,27 @@
+# Default values for jaeger
+replicaCount: 1
+
+image:
+  repository: jaegertracing/all-in-one
+  tag: latest
+
+service:
+  type: ClusterIP
+  zipkinPort: 9411
+
+ui:
+  service:
+    type: NodePort
+    port: 16686
+    nodePort: 30686
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+memory:
+  max_traces: 50000

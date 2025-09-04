@@ -14,6 +14,10 @@ spec:
       labels:
         app: bookingservice
     spec:
+      initContainers:
+        - name: check-jaeger
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup jaeger; do echo waiting for jaeger; sleep 2; done;']
       containers:
         - name: bookingservice
           image: ticketer/booking-service:latest
@@ -41,6 +45,17 @@ spec:
                   key: booking-db-password
             - name: ConnectionStrings__PostgresSQL
               value: "Host=booking-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=$(POSTGRES_PASSWORD)"
+            # OpenTelemetry configuration
+            - name: OpenTelemetry__ServiceName
+              value: "BookingService"
+            - name: OpenTelemetry__EnableConsoleExporter
+              value: "true"
+            - name: OpenTelemetry__Jaeger__Enabled
+              value: "true"
+            - name: OpenTelemetry__Jaeger__AgentHost
+              value: "jaeger"
+            - name: OpenTelemetry__Jaeger__AgentPort
+              value: "6831"
           resources:
             requests:
               cpu: "100m"

@@ -11,6 +11,11 @@ print("""
 -----------------------------------------------------------------
 ✨ Ticketer Microservices Development Environment
    Starting up all services in Kubernetes...
+   
+   🔍 Monitoring:
+     - Jaeger UI: http://localhost:16686
+     - Prometheus: http://localhost:9090
+     - Grafana: http://localhost:3000
 -----------------------------------------------------------------
 """.strip())
 
@@ -30,6 +35,9 @@ k8s_yaml([
     'k8s/monitoring/prometheus-service.yaml',
     'k8s/monitoring/grafana-deployment.yaml',
     'k8s/monitoring/grafana-service.yaml',
+    'k8s/monitoring/jaeger-deployment.yaml',
+    'k8s/monitoring/jaeger-service.yaml',
+    'k8s/monitoring/jaeger-ui-service.yaml',
     'k8s/services/booking-service/deployment.yaml',
     'k8s/services/booking-service/service.yaml',
     'k8s/services/booking-service/booking-db-deployment.yaml',
@@ -72,7 +80,7 @@ docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentServ
 docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile')
 
 # Define resources for Tilt UI
-k8s_resource('bookingservice', port_forwards=['5200:80'])
+k8s_resource('bookingservice', port_forwards=['5200:80'], resource_deps=['jaeger', 'rabbitmq', 'booking-db'])
 k8s_resource('booking-db', port_forwards=['5436:5432'])
 k8s_resource('ticketservice', port_forwards=['8080:8080'])
 k8s_resource('ticket-db', port_forwards=['5437:5432'])
@@ -85,7 +93,42 @@ k8s_resource('notification-service', port_forwards=['4042:4042'])
 k8s_resource('notification-db', port_forwards=['5440:5432'])
 k8s_resource('payment-service', port_forwards=['8090:8090'])
 k8s_resource('gateway-api', port_forwards=['5266:80'])
-k8s_resource('prometheus', port_forwards=['9090:9090'])
-k8s_resource('grafana', port_forwards=['3000:3000'])
+k8s_resource('prometheus', 
+    port_forwards=['9090:9090'], 
+    labels=["monitoring"],
+    links=[
+        link("http://localhost:9090", "Prometheus UI"),
+    ]
+)
+k8s_resource('grafana', 
+    port_forwards=['3000:3000'], 
+    labels=["monitoring"],
+    links=[
+        link("http://localhost:3000", "Grafana UI"),
+    ]
+)
 k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'])
+
+# OpenTelemetry and Jaeger Distributed Tracing
+#
+# BookingService is configured with OpenTelemetry to send traces to Jaeger.
+# Traces can be viewed at http://localhost:16686
+
+# Uncomment to use Helm charts instead of raw Kubernetes manifests
+# helm_resource('jaeger', './helm/jaeger',
+#    flags=[
+#       '--set', 'ui.service.type=ClusterIP',
+#       '--set', 'ui.service.nodePort='  # Remove NodePort when running in Tilt
+#    ],
+#    port_forwards=['16686:16686', '6831:6831/udp', '14268:14268'],
+#    labels=['monitoring'],
+#    links=[link("http://localhost:16686", "Jaeger UI")]
+# )
+k8s_resource('jaeger', 
+    port_forwards=['16686:16686', '14268:14268'], 
+    labels=["monitoring"],
+    links=[
+        link("http://localhost:16686", "Jaeger UI"),
+    ]
+)
 

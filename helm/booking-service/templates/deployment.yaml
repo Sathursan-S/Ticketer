@@ -14,6 +14,12 @@ spec:
       labels:
         app: {{ .Chart.Name }}
     spec:
+      initContainers:
+        {{- if .Values.opentelemetry.jaeger.enabled }}
+        - name: check-jaeger
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup {{ .Values.opentelemetry.jaeger.agentHost }}; do echo waiting for jaeger; sleep 2; done;']
+        {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -26,6 +32,21 @@ spec:
               value: "http://+:{{ .Values.service.port }}"
             - name: ConnectionStrings__PostgresSQL
               value: "Host={{ .Values.database.host }};Port={{ .Values.database.port }};Database={{ .Values.database.name }};Username={{ .Values.database.username }};Password={{ .Values.database.password }}"
+            {{- if .Values.opentelemetry }}
+            # OpenTelemetry configuration
+            - name: OpenTelemetry__ServiceName
+              value: {{ .Values.opentelemetry.serviceName | quote }}
+            - name: OpenTelemetry__EnableConsoleExporter
+              value: {{ .Values.opentelemetry.enableConsoleExporter | quote }}
+            {{- if .Values.opentelemetry.jaeger }}
+            - name: OpenTelemetry__Jaeger__Enabled
+              value: {{ .Values.opentelemetry.jaeger.enabled | quote }}
+            - name: OpenTelemetry__Jaeger__AgentHost
+              value: {{ .Values.opentelemetry.jaeger.agentHost | quote }}
+            - name: OpenTelemetry__Jaeger__AgentPort
+              value: {{ .Values.opentelemetry.jaeger.agentPort | quote }}
+            {{- end }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

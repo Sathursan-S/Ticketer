@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,6 +91,41 @@ builder.Services.AddCors(options =>
                 .AllowCredentials();
         });
 });
+
+// Configure OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName: builder.Configuration["OpenTelemetry:ServiceName"] ?? "BookingService"))
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("MassTransit");
+
+        // Add Console Exporter for development purposes
+        if (builder.Configuration.GetValue("OpenTelemetry:EnableConsoleExporter", false))
+        {
+            tracing.AddConsoleExporter();
+        }
+
+        // Configure Jaeger exporter if enabled
+        if (builder.Configuration.GetValue("OpenTelemetry:Jaeger:Enabled", false))
+        {
+            var jaegerHost = builder.Configuration["OpenTelemetry:Jaeger:AgentHost"] ?? "localhost";
+            var jaegerPort = builder.Configuration.GetValue("OpenTelemetry:Jaeger:AgentPort", 6831);
+            
+            tracing.AddJaegerExporter(jaegerOptions =>
+            {
+                jaegerOptions.AgentHost = jaegerHost;
+                jaegerOptions.AgentPort = jaegerPort;
+                jaegerOptions.MaxPayloadSizeInBytes = builder.Configuration.GetValue("OpenTelemetry:Jaeger:MaxPayloadSizeInBytes", 4096);
+                jaegerOptions.ExportProcessorType = builder.Configuration["OpenTelemetry:Jaeger:ExportProcessorType"] == "Batch" 
+                    ? ExportProcessorType.Batch 
+                    : ExportProcessorType.Simple;
+            });
+        }
+    });
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>

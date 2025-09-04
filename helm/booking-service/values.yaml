@@ -30,3 +30,12 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+# OpenTelemetry Configuration
+opentelemetry:
+  serviceName: BookingService
+  enableConsoleExporter: true
+  jaeger:
+    enabled: true
+    agentHost: jaeger
+    agentPort: 6831

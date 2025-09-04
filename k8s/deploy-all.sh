@@ -12,6 +12,10 @@ kubectl create namespace ticketer --dry-run=client -o yaml | kubectl apply -f -
 echo "🏗️  Deploying Infrastructure..."
 kubectl apply -f k8s/infra/rabbitmq/
 
+# Deploy monitoring tools
+echo "📊 Deploying Monitoring Tools..."
+kubectl apply -f k8s/monitoring/
+
 # Deploy databases and services
 echo "🗄️  Deploying Databases and Services..."
 
@@ -77,6 +81,9 @@ echo ""
 echo "🐰 Infrastructure:"
 echo "  RabbitMQ Management: http://localhost:15672"
 echo "  Redis: localhost:6379"
+echo ""
+echo "📊 Monitoring:"
+echo "  Jaeger UI: http://localhost:30686"
 echo ""
 echo "💡 Use 'tilt up' for development environment with auto-reload"
 echo "📖 Check k8s/README.md for detailed documentation"

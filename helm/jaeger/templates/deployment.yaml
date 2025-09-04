@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 5775
+              protocol: UDP
+              name: udp-5775
+            - containerPort: 6831
+              protocol: UDP
+              name: udp-6831
+            - containerPort: 6832
+              protocol: UDP
+              name: udp-6832
+            - containerPort: 5778
+              name: http-5778
+            - containerPort: 16686
+              name: http-16686
+            - containerPort: 14250
+              name: grpc-14250
+            - containerPort: 14268
+              name: http-14268
+            - containerPort: 14269
+              name: http-14269
+            - containerPort: 9411
+              name: http-9411
+          env:
+            - name: COLLECTOR_ZIPKIN_HOST_PORT
+              value: ":{{ .Values.service.zipkinPort }}"
+            - name: MEMORY_MAX_TRACES
+              value: "{{ .Values.memory.max_traces }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 10
+            periodSeconds: 5
