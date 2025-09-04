@@ -182,6 +182,9 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 .WithDisplayName("Liveness Health Check")
 .WithTags("Health");
 
+// Add Prometheus metrics endpoint
+app.MapPrometheusScrapingEndpoint("/metrics");
+
 // Reverse proxy
 app.MapReverseProxy();
 

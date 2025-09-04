@@ -16,6 +16,7 @@ print("""
      - Jaeger UI: http://localhost:16686
      - Prometheus: http://localhost:9090
      - Grafana: http://localhost:3000
+     - OTEL Collector: http://localhost:4317 (gRPC) / http://localhost:4318 (HTTP)
 -----------------------------------------------------------------
 """.strip())
 
@@ -39,6 +40,9 @@ k8s_yaml([
     'k8s/monitoring/jaeger-deployment.yaml',
     'k8s/monitoring/jaeger-service.yaml',
     'k8s/monitoring/jaeger-ui-service.yaml',
+    'k8s/monitoring/otel-collector-config.yaml',
+    'k8s/monitoring/otel-collector-deployment.yaml',
+    'k8s/monitoring/otel-collector-service.yaml',
     'k8s/services/booking-service/deployment.yaml',
     'k8s/services/booking-service/service.yaml',
     'k8s/services/booking-service/booking-db-deployment.yaml',
@@ -72,18 +76,47 @@ k8s_yaml([
 ])
 
 # Build Docker images
-docker_build('ticketer/booking-service', '.', dockerfile='./services/BookingService/Dockerfile')
-docker_build('ticketer/ticket-service', '.', dockerfile='./services/TicketService/Dockerfile')
-docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile')
-docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile')
-docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile')
-docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile')
-docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile')
+docker_build('ticketer/booking-service', '.', 
+    dockerfile='./services/BookingService/Dockerfile',
+    live_update=[
+        sync('./services/BookingService/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/ticket-service', '.', dockerfile='./services/TicketService/Dockerfile',
+    live_update=[
+        sync('./services/TicketService/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile',
+live_update=[
+        sync('./services/authentication-service/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile',
+    live_update=[
+        sync('./services/events-service/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile',
+    live_update=[
+        sync('./services/notification-service/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile',
+    live_update=[
+        sync('./services/PaymentService/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
+docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile',
+    live_update=[
+        sync('./services/Gateway.Api/', '/app'),
+        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+    ])
 
 # Define resources for Tilt UI
 k8s_resource('bookingservice', port_forwards=['5200:80'], labels=["service"])
 k8s_resource('booking-db', port_forwards=['5436:5432'], labels=["service"])
-k8s_resource('ticketservice', port_forwards=['8080:8080'], labels=["service"])
+k8s_resource('ticketservice', port_forwards=['8080:5300'], labels=["service"])
 k8s_resource('ticket-db', port_forwards=['5437:5432'], labels=["service"])
 k8s_resource('redis', port_forwards=['6379:6379'], labels=["service"])
 k8s_resource('authentication-service', port_forwards=['4040:4040'], labels=["service"])
@@ -108,12 +141,22 @@ k8s_resource('grafana',
         link("http://localhost:3000", "Grafana UI"),
     ]
 )
+k8s_resource('otel-collector', 
+    port_forwards=['4317:4317', '4318:4318'], 
+    labels=["monitoring"],
+    links=[
+        link("http://localhost:4317", "OTLP gRPC"),
+        link("http://localhost:4318", "OTLP HTTP"),
+    ]
+)
 k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'])
 
 # OpenTelemetry and Jaeger Distributed Tracing
 #
-# BookingService is configured with OpenTelemetry to send traces to Jaeger.
+# Services are configured with OpenTelemetry to send traces to the OTEL Collector,
+# which forwards them to Jaeger for visualization.
 # Traces can be viewed at http://localhost:16686
+# OTEL Collector endpoints: http://localhost:4317 (gRPC) / http://localhost:4318 (HTTP)
 
 # Uncomment to use Helm charts instead of raw Kubernetes manifests
 # helm_resource('jaeger', './helm/jaeger',

@@ -115,4 +115,7 @@ app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health");
 
+// Add Prometheus metrics endpoint
+app.MapPrometheusScrapingEndpoint("/metrics");
+
 await app.RunAsync();

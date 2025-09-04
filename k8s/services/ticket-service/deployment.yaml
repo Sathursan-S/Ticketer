@@ -18,7 +18,7 @@ spec:
         - name: ticketservice
           image: ticketer/ticket-service:latest
           ports:
-            - containerPort: 80
+            - containerPort: 5300
           env:
             - name: ASPNETCORE_ENVIRONMENT
               valueFrom:
@@ -81,12 +81,12 @@ spec:
           livenessProbe:
             httpGet:
               path: /health/live
-              port: 80
+              port: 5300
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health/live
-              port: 80
+              port: 5300
             initialDelaySeconds: 10
             periodSeconds: 5

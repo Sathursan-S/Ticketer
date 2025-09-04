@@ -6,11 +6,13 @@ metadata:
     app: ticketservice
 data:
   ASPNETCORE_ENVIRONMENT: "Development"
-  ASPNETCORE_URLS: "http://+:80"
-  ASPNETCORE_HTTP_PORTS: "80"
+  ASPNETCORE_URLS: "http://+:5300"
+  ASPNETCORE_HTTP_PORTS: "5300"
   DatabaseProvider: "PostgreSQL"
   RabbitMq__Host: "rabbitmq"
   RabbitMq__Username: "guest"
   RabbitMq__Password: "guest"
   RabbitMq__VirtualHost: "/"
   RabbitMq__Port: "5672"
+  OpenTelemetry__Otlp__Endpoint: "http://otel-collector:4317"
+  OpenTelemetry__ServiceName: "TicketService"

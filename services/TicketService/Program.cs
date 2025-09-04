@@ -17,18 +17,21 @@ using TicketService.Infrastructure.Messaging;
 using TicketService.Mappers;
 using TicketService.Repositoy;
 using TicketService.Repository;
-using MassTransit;
 using TicketService.Consumers;
-using TicketService.Application;
-using TicketService.Contracts.Messages;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Instrumentation.Http;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<EventCreatedConsumer>();
+    x.AddConsumer<HoldTicketsConsumer>();
 
     x.SetKebabCaseEndpointNameFormatter();
 
@@ -44,7 +47,7 @@ builder.Services.AddMassTransit(x =>
             h.Username(user);
             h.Password(pass);
         });
-         cfg.ClearSerialization();
+        cfg.ClearSerialization();
         cfg.UseRawJsonSerializer();
         cfg.UseRawJsonDeserializer();
 
@@ -53,13 +56,13 @@ builder.Services.AddMassTransit(x =>
 });
 
 // Add services to the container.
-    builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Configure JSON serialization
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    });
+builder.Services.AddControllers()
+.AddJsonOptions(options =>
+{
+    // Configure JSON serialization
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
 
 // Add API documentation with Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -141,14 +144,14 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-    
+
     // Configure Redis with better resilience options
     var options = ConfigurationOptions.Parse(redisConnectionString);
     options.AbortOnConnectFail = false; // Don't crash on startup if Redis is down
     options.ConnectRetry = 5;
     options.ConnectTimeout = 5000;
     options.SyncTimeout = 3000;
-    
+
     return ConnectionMultiplexer.Connect(options);
 });
 
@@ -157,15 +160,15 @@ builder.Services.AddSingleton<RedLockFactory>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var connectionMultiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
-    
+
     // Check if multiple Redis endpoints are configured
     var endpoints = configuration.GetSection("Redis:Endpoints").Get<string[]>();
-    
+
     if (endpoints != null && endpoints.Length > 0)
     {
         // Create multiplexers for all configured endpoints
         var multiplexers = new List<RedLockMultiplexer> { new(connectionMultiplexer) };
-        
+
         foreach (var endpoint in endpoints)
         {
             if (!string.IsNullOrEmpty(endpoint) && endpoint != configuration.GetConnectionString("Redis"))
@@ -175,10 +178,10 @@ builder.Services.AddSingleton<RedLockFactory>(sp =>
                 multiplexers.Add(new RedLockMultiplexer(ConnectionMultiplexer.Connect(options)));
             }
         }
-        
+
         return RedLockFactory.Create(multiplexers);
     }
-    
+
     // Fall back to single Redis instance if no endpoints configured
     return RedLockFactory.Create(new List<RedLockMultiplexer> { new(connectionMultiplexer) });
 });
@@ -188,9 +191,9 @@ builder.Services.Configure<RabbitMqSettings>(
     builder.Configuration.GetSection("RabbitMq"));
 
 // Register RabbitMQ health check service
-builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider => 
+builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
 {
-    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>() 
+    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>()
         ?? new RabbitMqSettings();
     var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
     return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
@@ -199,32 +202,6 @@ builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
 // Register RabbitMQ health check
 builder.Services.AddHealthChecks()
     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
-
-// Add MassTransit with RabbitMQ
-builder.Services.AddMassTransit(busConfig => 
-{
-    // Register consumers
-    busConfig.AddConsumer<HoldTicketsConsumer>();
-    
-    // Configure RabbitMQ
-    busConfig.UsingRabbitMq((context, cfg) => 
-    {
-        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
-        
-        cfg.Host(rabbitMqSettings.Host, h => 
-        {
-            h.Username(rabbitMqSettings.Username);
-            h.Password(rabbitMqSettings.Password);
-            h.UseCluster(c =>
-            {
-                c.Node(rabbitMqSettings.Host);
-            });
-        });
-        
-        // Configure endpoints
-        cfg.ConfigureEndpoints(context);
-    });
-});
 
 // Add application services
 builder.Services.AddScoped<ITicketRepository, TicketRepository>();
@@ -236,23 +213,77 @@ builder.Services.AddHealthChecks(builder.Configuration);
 // Configure OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService(serviceName: "TicketService"))
+        .AddService(serviceName: "TicketService")
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["service.instance.id"] = Environment.MachineName,
+            ["deployment.environment"] = builder.Environment.EnvironmentName
+        }))
     .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            options.EnrichWithHttpRequest = (activity, httpRequest) =>
+            {
+                activity.SetTag("http.request_id", httpRequest.Headers["X-Request-ID"].FirstOrDefault());
+                activity.SetTag("http.user_agent", httpRequest.Headers["User-Agent"].FirstOrDefault());
+            };
+            options.EnrichWithHttpResponse = (activity, httpResponse) =>
+            {
+                activity.SetTag("http.status_code", httpResponse.StatusCode);
+            };
+        })
+        .AddHttpClientInstrumentation(options =>
+        {
+            options.EnrichWithHttpRequestMessage = (activity, httpRequest) =>
+            {
+                activity.SetTag("http.request_id", httpRequest.Headers.GetValues("X-Request-ID").FirstOrDefault());
+            };
+            options.EnrichWithHttpResponseMessage = (activity, httpResponse) =>
+            {
+                activity.SetTag("http.status_code", httpResponse.StatusCode);
+            };
+        })
+        .AddEntityFrameworkCoreInstrumentation(options =>
+        {
+            options.SetDbStatementForText = true;
+            options.EnrichWithIDbCommand = (activity, command) =>
+            {
+                activity.SetTag("db.connection_string", command.Connection?.ConnectionString);
+                activity.SetTag("db.command_type", command.CommandType.ToString());
+            };
+        })
+        .AddRedisInstrumentation()
         .AddSource("MassTransit")
+        .AddSource("TicketService.*")
         .AddConsoleExporter()
+        .AddJaegerExporter(options =>
+        {
+            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
+            if (!string.IsNullOrEmpty(jaegerEndpoint))
+            {
+                options.AgentHost = jaegerEndpoint.Split(':')[0];
+                options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
+            }
+            else
+            {
+                options.AgentHost = "jaeger";
+                options.AgentPort = 6831;
+            }
+        })
         .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
         }))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddMeter("TicketService.*")
         .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
@@ -260,7 +291,7 @@ builder.Services.AddOpenTelemetry()
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
         })
         .AddPrometheusExporter());
@@ -282,12 +313,12 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Ticket Service API v1");
         options.RoutePrefix = string.Empty; // Serve Swagger UI at the app's root
     });
-    
+
     // Apply migrations in development for easier testing
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<TicketDbContext>();
-        
+
         // Ensure database is created for SQLite
         if (builder.Configuration["DatabaseProvider"]?.ToLower() == "sqlite")
         {
@@ -322,5 +353,8 @@ app.MapControllers();
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health");
+
+// Add Prometheus metrics endpoint
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 await app.RunAsync();

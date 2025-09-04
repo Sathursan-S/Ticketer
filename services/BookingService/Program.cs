@@ -12,6 +12,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,33 +108,76 @@ builder.Services.AddCors(options =>
 // Configure OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService(serviceName: builder.Configuration["OpenTelemetry:ServiceName"] ?? "BookingService"))
-    .WithTracing(tracing =>
-    {
-        tracing
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddSource("MassTransit");
-
-        // Add Console Exporter for development purposes
-        if (builder.Configuration.GetValue("OpenTelemetry:EnableConsoleExporter", false))
+        .AddService(serviceName: "BookingService")
+        .AddAttributes(new Dictionary<string, object>
         {
-            tracing.AddConsoleExporter();
-        }
-
-        // Add OTLP exporter
-        tracing.AddOtlpExporter(options =>
+            ["service.instance.id"] = Environment.MachineName,
+            ["deployment.environment"] = builder.Environment.EnvironmentName
+        }))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            options.EnrichWithHttpRequest = (activity, httpRequest) =>
+            {
+                activity.SetTag("http.request_id", httpRequest.Headers["X-Request-ID"].FirstOrDefault());
+                activity.SetTag("http.user_agent", httpRequest.Headers["User-Agent"].FirstOrDefault());
+            };
+            options.EnrichWithHttpResponse = (activity, httpResponse) =>
+            {
+                activity.SetTag("http.status_code", httpResponse.StatusCode);
+            };
+        })
+        .AddHttpClientInstrumentation(options =>
+        {
+            options.EnrichWithHttpRequestMessage = (activity, httpRequest) =>
+            {
+                activity.SetTag("http.request_id", httpRequest.Headers.GetValues("X-Request-ID").FirstOrDefault());
+            };
+            options.EnrichWithHttpResponseMessage = (activity, httpResponse) =>
+            {
+                activity.SetTag("http.status_code", httpResponse.StatusCode);
+            };
+        })
+        .AddEntityFrameworkCoreInstrumentation(options =>
+        {
+            options.SetDbStatementForText = true;
+            options.EnrichWithIDbCommand = (activity, command) =>
+            {
+                activity.SetTag("db.connection_string", command.Connection?.ConnectionString);
+                activity.SetTag("db.command_type", command.CommandType.ToString());
+            };
+        })
+        .AddSource("MassTransit")
+        .AddSource("BookingService.*")
+        .AddConsoleExporter()
+        .AddJaegerExporter(options =>
+        {
+            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
+            if (!string.IsNullOrEmpty(jaegerEndpoint))
+            {
+                options.AgentHost = jaegerEndpoint.Split(':')[0];
+                options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
+            }
+            else
+            {
+                options.AgentHost = "jaeger";
+                options.AgentPort = 6831;
+            }
+        })
+        .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
-        });
-    })
+        }))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddMeter("BookingService.*")
         .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
@@ -140,7 +185,7 @@ builder.Services.AddOpenTelemetry()
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
         })
         .AddPrometheusExporter());
@@ -332,5 +377,8 @@ app.MapControllers();
 // Kubernetes readiness/liveness
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");
+
+// Add Prometheus metrics endpoint
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 await app.RunAsync();
