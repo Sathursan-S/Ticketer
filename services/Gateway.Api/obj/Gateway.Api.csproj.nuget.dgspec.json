@@ -58,6 +58,10 @@
               "target": "Package",
               "version": "[1.12.0, )"
             },
+            "OpenTelemetry.Exporter.Jaeger": {
+              "target": "Package",
+              "version": "[1.5.1, )"
+            },
             "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
               "target": "Package",
               "version": "[1.12.0, )"

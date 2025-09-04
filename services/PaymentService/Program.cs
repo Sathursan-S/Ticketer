@@ -8,6 +8,7 @@ using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Exporter.Jaeger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +76,15 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddSource("MassTransit")
         .AddConsoleExporter()
+        .AddJaegerExporter(options =>
+        {
+            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
+            if (!string.IsNullOrEmpty(jaegerEndpoint))
+            {
+                options.AgentHost = jaegerEndpoint;
+                options.AgentPort = 6831;
+            }
+        })
         .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];

@@ -48,14 +48,12 @@ spec:
             # OpenTelemetry configuration
             - name: OpenTelemetry__ServiceName
               value: "BookingService"
-            - name: OpenTelemetry__EnableConsoleExporter
-              value: "true"
-            - name: OpenTelemetry__Jaeger__Enabled
-              value: "true"
-            - name: OpenTelemetry__Jaeger__AgentHost
-              value: "jaeger"
-            - name: OpenTelemetry__Jaeger__AgentPort
-              value: "6831"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Jaeger__Endpoint
+              value: "jaeger:6831"
+            - name: OpenTelemetry__Otlp__Endpoint
+              value: "http://otel-collector:4317"
           resources:
             requests:
               cpu: "100m"

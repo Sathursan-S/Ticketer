@@ -55,3 +55,4 @@ E:\Projects\Acadamic\Cloud\Ticketer\services\Gateway.Api\bin\Debug\net9.0\OpenTe
 E:\Projects\Acadamic\Cloud\Ticketer\services\Gateway.Api\bin\Debug\net9.0\OpenTelemetry.Extensions.Hosting.dll
 E:\Projects\Acadamic\Cloud\Ticketer\services\Gateway.Api\bin\Debug\net9.0\OpenTelemetry.Instrumentation.AspNetCore.dll
 E:\Projects\Acadamic\Cloud\Ticketer\services\Gateway.Api\bin\Debug\net9.0\OpenTelemetry.Instrumentation.Http.dll
+E:\Projects\Acadamic\Cloud\Ticketer\services\Gateway.Api\bin\Debug\net9.0\OpenTelemetry.Exporter.Jaeger.dll
