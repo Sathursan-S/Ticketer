@@ -41,6 +41,7 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
             When(BookingCreatedEvent)
                 .Then(context =>
                 {
+                    context.Saga.CorrelationId = context.Message.BookingId;
                     context.Saga.CustomerId = context.Message.CustomerId;
                     context.Saga.BookingId = context.Message.BookingId;
                     context.Saga.CreatedAt = DateTime.UtcNow;
@@ -52,7 +53,7 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
                     NumberOfTickets = context.Saga.NumberOfTickets,
-                    CustomerId = context.Saga.CustomerId
+                    CustomerId = context.Saga.CustomerId ?? string.Empty
                 }))
                 .TransitionTo(BookingCreated)
         );
@@ -64,12 +65,13 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                 {
                     context.Saga.Tickets = context.Message.TicketIds;
                     context.Saga.TotalPrice = context.Message.TotalPrice;
+                    context.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .PublishAsync(context => context.Init<ProcessPayment>(new
                 {
                     BookingId = context.Saga.BookingId,
-                    CustomerId = context.Saga.CustomerId,
-                    TotalPrice = context.Saga.TotalPrice
+                    CustomerId = context.Saga.CustomerId ?? string.Empty,
+                    Amount = context.Saga.TotalPrice
                 }))
                 .TransitionTo(ProcessingPayment),
 
@@ -89,13 +91,14 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                 .Then(context =>
                 {
                     context.Saga.PaymentIntentId = context.Message.PaymentIntentId;
+                    context.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .PublishAsync(context => context.Init<ReserveTickets>(new
                 {
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
                     TicketIds = context.Saga.Tickets,
-                    CustomerId = context.Saga.CustomerId
+                    CustomerId = context.Saga.CustomerId ?? string.Empty
                 }))
                 .TransitionTo(ConfirmingTickets),
 

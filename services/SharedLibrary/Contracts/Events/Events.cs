@@ -3,15 +3,10 @@
 /// <summary>
 /// Represents an event that is triggered when a booking is created.
 /// </summary>
-/// <param name="BookingId">The unique identifier of the booking.</param>
-/// <param name="CustomerId">The identifier of the customer who made the booking.</param>
-/// <param name="EventId">The identifier of the event for which the booking was made.</param>
-/// <param name="NumberOfTickets">The number of tickets booked.</param>
-/// <param name="CreatedAt">The date and time when the booking was created.</param>
-public record BookingCreatedEvent()
+public record BookingCreatedEvent
 {
     public Guid BookingId { get; init; }
-    public string CustomerId { get; init; }
+    public string? CustomerId { get; init; }
     public int EventId { get; init; }
     public int NumberOfTickets { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -74,29 +69,22 @@ public record TicketReservationFailedEvent(
 /// <summary>
 /// Represents an event that is triggered when a payment is processed.
 /// </summary>
-/// <param name="BookingId">The unique identifier of the booking.</param>
-/// <param name="PaymentIntentId">The unique identifier of the payment intent.</param>
-/// <param name="CustomerId">The identifier of the user who made the payment.</param>
-/// <param name="Amount">The amount that was paid.</param>
-/// <param name="PaymentMethod"></param>
 public record PaymentProcessedEvent
 {
     public Guid BookingId { get; init; }
-    public string PaymentIntentId { get; init; }
-    public string CustomerId { get; init; }
+    public string? PaymentIntentId { get; init; }
+    public string? CustomerId { get; init; }
     public decimal Amount { get; init; }
-    public string PaymentMethod { get; init; }
+    public string? PaymentMethod { get; init; }
 };
 
 
 /// <summary>
 /// Represents an event that is triggered when a payment fails.
 /// </summary>
-/// <param name="BookingId">The unique identifier of the booking.</param>
-/// <param name="Reason">The reason for the payment failure.</param>
 public record PaymentFailedEvent
 {
     public Guid BookingId { get; init; }
-    public string PaymentIntentId { get; init; }
-    public string Reason { get; init; }
+    public string? PaymentIntentId { get; init; }
+    public string? Reason { get; init; }
 };

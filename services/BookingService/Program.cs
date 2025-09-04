@@ -9,6 +9,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// -------------------- Database --------------------
 builder.Services.AddDbContext<BookingSagaDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"), npgsqlOptions =>
@@ -21,9 +23,8 @@ builder.Services.AddDbContext<BookingSagaDbContext>(options =>
     });
 });
 
-
+// -------------------- RabbitMQ Config --------------------
 builder.Services.Configure<RabbitMqSettings>(builder.Configuration.GetSection("RabbitMq"));
-
 
 builder.Services.AddMassTransit(x =>
 {
@@ -31,10 +32,8 @@ builder.Services.AddMassTransit(x =>
         .EntityFrameworkRepository(r =>
         {
             r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-            r.DatabaseFactory(() => new BookingSagaDbContext(
-                new DbContextOptionsBuilder<BookingSagaDbContext>()
-                    .UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"))
-                    .Options));
+            r.DatabaseFactory(provider =>
+                provider.GetRequiredService<BookingSagaDbContext>());
             r.UsePostgres();
         });
 
@@ -42,42 +41,36 @@ builder.Services.AddMassTransit(x =>
     x.AddSagas(typeof(Program).Assembly);
     x.AddConsumers(typeof(Program).Assembly);
 
-    // x.UsingRabbitMq((context, cfg) =>
-    // {
-    //     var mq = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
-
-    //     cfg.Host(mq.Host, mq.Port, string.IsNullOrWhiteSpace(mq.VirtualHost) ? "/" : mq.VirtualHost, h =>
-    //     {
-    //         h.Username(mq.Username);
-    //         h.Password(mq.Password);
-    //     });
-
-    //     cfg.ClearSerialization();
-    //     cfg.UseRawJsonSerializer();
-    //     cfg.UseRawJsonDeserializer();
-
-    //     cfg.ConfigureEndpoints(context);
-    // });
     x.UsingRabbitMq((context, cfg) =>
-{
-    var mq = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
-    var vhost = string.IsNullOrWhiteSpace(mq.VirtualHost) ? "/" : mq.VirtualHost;
-
-    cfg.Host(mq.Host, vhost, h =>
     {
-        h.Username(mq.Username);
-        h.Password(mq.Password);
+        var mq = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+        var vhost = string.IsNullOrWhiteSpace(mq.VirtualHost) ? "/" : mq.VirtualHost;
+
+        cfg.Host(mq.Host, vhost, h =>
+        {
+            h.Username(mq.Username);
+            h.Password(mq.Password);
+        });
+
+        // Use raw JSON serialization
+        cfg.ClearSerialization();
+        cfg.UseRawJsonSerializer();
+        cfg.UseRawJsonDeserializer();
+
+        // Resilience
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        cfg.UseCircuitBreaker(cb =>
+        {
+            cb.TripThreshold = 0.15;
+            cb.ActiveThreshold = 10;
+            cb.ResetInterval = TimeSpan.FromMinutes(1);
+        });
+
+        cfg.ConfigureEndpoints(context);
     });
-
-    cfg.ClearSerialization();
-    cfg.UseRawJsonSerializer();
-    cfg.UseRawJsonDeserializer();
-
-    cfg.ConfigureEndpoints(context);
 });
 
-});
-
+// -------------------- Services --------------------
 builder.Services.AddScoped<IPaymentPublisher, PaymentPublisher>();
 
 builder.Services.AddSingleton(sp =>
@@ -87,10 +80,12 @@ builder.Services.AddSingleton(sp =>
     return new RabbitMqHealthCheck(logger, mq.Host, mq.Port);
 });
 
+// -------------------- Health Checks --------------------
 builder.Services.AddHealthChecks()
     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" })
     .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
+// -------------------- CORS --------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
@@ -103,6 +98,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// -------------------- Controllers --------------------
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
@@ -123,6 +119,7 @@ builder.Services.AddControllers()
         };
     });
 
+// -------------------- Swagger --------------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -145,7 +142,6 @@ builder.Services.AddSwaggerGen(c =>
         c.IncludeXmlComments(xmlPath);
     }
 
-    // Add security definitions for future authentication
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -171,8 +167,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// -------------------- Build App --------------------
 var app = builder.Build();
 
+// -------------------- Database Migration --------------------
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<BookingSagaDbContext>();
@@ -180,17 +178,18 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        logger.LogInformation("Ensuring database is created...");
-        await ctx.Database.EnsureCreatedAsync();
-        logger.LogInformation("Database initialization completed.");
+        logger.LogInformation("Applying database migrations...");
+        await ctx.Database.MigrateAsync();
+        logger.LogInformation("Database migration completed.");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred while initializing the database: {Message}", ex.Message);
-        throw new InvalidOperationException("Failed to initialize the database. See inner exception for details.", ex);
+        logger.LogError(ex, "An error occurred while migrating the database: {Message}", ex.Message);
+        throw new InvalidOperationException("Failed to migrate the database. See inner exception for details.", ex);
     }
 }
 
+// -------------------- Health Endpoints --------------------
 app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = hc => hc.Tags.Contains("messaging"),
@@ -239,7 +238,7 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     }
 });
 
-// Configure the HTTP request pipeline
+// -------------------- Middleware --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -247,11 +246,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        c.RoutePrefix = string.Empty;
         c.DisplayRequestDuration();
         c.EnableTryItOutByDefault();
         c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
-        c.DefaultModelsExpandDepth(-1); // Hide models section by default
+        c.DefaultModelsExpandDepth(-1);
     });
 }
 else
@@ -260,7 +259,7 @@ else
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-        c.RoutePrefix = "swagger"; // Set Swagger UI at /swagger path in production
+        c.RoutePrefix = "swagger";
     });
 }
 
@@ -269,7 +268,7 @@ app.UseCors("AllowSpecificOrigins");
 app.UseAuthorization();
 app.MapControllers();
 
-// Map health check endpoints for Kubernetes
+// Kubernetes readiness/liveness
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");
 
