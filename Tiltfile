@@ -75,6 +75,7 @@ k8s_yaml([
     'k8s/api-gateway/kong/kong-postgres.yaml',
     'k8s/api-gateway/kong/kong-migration.yaml',
     'k8s/api-gateway/kong/kong-deployment.yaml',
+    'k8s/api-gateway/kong/kong-ingress-controller.yaml',
     'k8s/api-gateway/kong-plugins.yaml',
     'k8s/api-gateway/ingress.yaml',
 ])
@@ -127,6 +128,7 @@ k8s_resource('notification-db', port_forwards=['5440:5432'], labels=["service"])
 k8s_resource('payment-service', port_forwards=['8090:8090'], labels=["service"])
 k8s_resource('kong', port_forwards=['8000:8000', '8001:8001'], labels=["api-gateway"], new_name="kong-gateway")
 k8s_resource('kong-postgres', labels=["api-gateway"])
+k8s_resource('kong-ingress-controller', labels=["api-gateway"])
 k8s_resource('prometheus', 
     port_forwards=['9090:9090'], 
     labels=["monitoring"],

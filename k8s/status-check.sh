@@ -32,7 +32,7 @@ echo ""
 # Check infrastructure
 echo "🏗️  Infrastructure:"
 kubectl get pods -l app=rabbitmq,redis --sort-by=.metadata.name
-kubectl get pods -n kong -l app=kong,kong-postgres --sort-by=.metadata.name
+kubectl get pods -n kong -l app=kong,kong-postgres,kong-ingress-controller --sort-by=.metadata.name
 echo ""
 
 # Health check summary

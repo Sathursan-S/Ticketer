@@ -1,0 +1,99 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-ingress-controller
+rules:
+- apiGroups: [""]
+  resources: ["endpoints", "services", "secrets", "nodes", "pods", "configmaps", "events", "namespaces"]
+  verbs: ["list", "watch", "get", "create", "update", "patch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["list", "watch", "get", "create", "update", "patch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses/status"]
+  verbs: ["update", "patch"]
+- apiGroups: ["configuration.konghq.com"]
+  resources: ["kongingresses", "kongconsumers", "kongplugins", "kongclusterplugins", "tcpingresses", "udpingresses"]
+  verbs: ["list", "watch", "get", "create", "update", "patch", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-ingress-controller
+  namespace: kong
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-ingress-controller
+subjects:
+- kind: ServiceAccount
+  name: kong-ingress-controller
+  namespace: kong
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-ingress-controller
+  namespace: kong
+  labels:
+    app: kong-ingress-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong-ingress-controller
+  template:
+    metadata:
+      labels:
+        app: kong-ingress-controller
+    spec:
+      serviceAccountName: kong-ingress-controller
+      containers:
+      - name: kong-ingress-controller
+        image: kong/kubernetes-ingress-controller:3.0
+        env:
+        - name: CONTROLLER_KONG_ADMIN_URL
+          value: "http://kong-admin:8001"
+        - name: CONTROLLER_PUBLISH_SERVICE
+          value: kong/kong-proxy
+        - name: CONTROLLER_INGRESS_CLASS
+          value: kong
+        ports:
+        - name: webhook
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 10254
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 10254
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 10254
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 100m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi

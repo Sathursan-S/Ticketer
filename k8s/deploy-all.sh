@@ -52,6 +52,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/kong-postgres -
 kubectl apply -f k8s/api-gateway/kong/kong-migration.yaml
 kubectl wait --for=condition=complete --timeout=300s job/kong-migration -n kong
 kubectl apply -f k8s/api-gateway/kong/kong-deployment.yaml
+kubectl apply -f k8s/api-gateway/kong/kong-ingress-controller.yaml
 kubectl apply -f k8s/api-gateway/kong-plugins.yaml
 kubectl apply -f k8s/api-gateway/ingress.yaml
 
@@ -64,6 +65,7 @@ kubectl wait --for=condition=available --timeout=600s deployment/events-service
 kubectl wait --for=condition=available --timeout=600s deployment/notification-service
 kubectl wait --for=condition=available --timeout=600s deployment/payment-service
 kubectl wait --for=condition=available --timeout=600s deployment/kong -n kong
+kubectl wait --for=condition=available --timeout=600s deployment/kong-ingress-controller -n kong
 
 echo "✅ All services deployed successfully!"
 echo ""
