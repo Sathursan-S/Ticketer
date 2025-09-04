@@ -15,7 +15,7 @@ using OpenTelemetry.Exporter;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// saga state db context
+// -------------------- Database --------------------
 builder.Services.AddDbContext<BookingSagaDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"), npgsqlOptions =>
@@ -28,70 +28,79 @@ builder.Services.AddDbContext<BookingSagaDbContext>(options =>
     });
 });
 
-// Configure RabbitMQ settings
+// -------------------- RabbitMQ Config --------------------
 builder.Services.Configure<RabbitMqSettings>(builder.Configuration.GetSection("RabbitMq"));
 
-// MassTransit setup
 builder.Services.AddMassTransit(x =>
 {
-    // Configure RabbitMQ
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
-        
-        cfg.Host(rabbitMqSettings.Host, "/", h =>
-        {
-            h.Username(rabbitMqSettings.Username);
-            h.Password(rabbitMqSettings.Password);
-        });
-
-        // Configure endpoints by convention
-        cfg.ConfigureEndpoints(context);
-    });
-
-    // Configure saga state machine
     x.AddSagaStateMachine<BookingStateMachine, BookingState>()
         .EntityFrameworkRepository(r =>
         {
             r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-            r.DatabaseFactory(() => new BookingSagaDbContext(
-                new DbContextOptionsBuilder<BookingSagaDbContext>()
-                    .UseNpgsql(builder.Configuration.GetConnectionString("PostgresSQL"))
-                    .Options));
+            r.DatabaseFactory(provider => () =>
+                provider.GetRequiredService<BookingSagaDbContext>());
             r.UsePostgres();
         });
 
-    // Auto-discover consumers and message handlers in the assembly
     x.SetKebabCaseEndpointNameFormatter();
     x.AddSagas(typeof(Program).Assembly);
     x.AddConsumers(typeof(Program).Assembly);
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var mq = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+        var vhost = string.IsNullOrWhiteSpace(mq.VirtualHost) ? "/" : mq.VirtualHost;
+
+        cfg.Host(mq.Host, vhost, h =>
+        {
+            h.Username(mq.Username);
+            h.Password(mq.Password);
+        });
+
+        // Use raw JSON serialization
+        cfg.ClearSerialization();
+        cfg.UseRawJsonSerializer();
+        cfg.UseRawJsonDeserializer();
+
+        // Resilience
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        cfg.UseCircuitBreaker(cb =>
+        {
+            cb.TripThreshold = (int)0.15;
+            cb.ActiveThreshold = 10;
+            cb.ResetInterval = TimeSpan.FromMinutes(1);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
 });
 
-// Register RabbitMQ health check service
-builder.Services.AddSingleton(serviceProvider => 
+// -------------------- Services --------------------
+builder.Services.AddScoped<IPaymentPublisher, PaymentPublisher>();
+
+builder.Services.AddSingleton(sp =>
 {
-    var rabbitMqSettings = serviceProvider.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
-    var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
-    return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
+    var mq = sp.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+    var logger = sp.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
+    return new RabbitMqHealthCheck(logger, mq.Host, (int)mq.Port);
 });
 
-// Register health checks
+// -------------------- Health Checks --------------------
 builder.Services.AddHealthChecks()
     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" })
     .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
-// Add CORS policy
+// -------------------- CORS --------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-        policy => 
-        {
-            var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-            policy.WithOrigins(corsOrigins ?? Array.Empty<string>())
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        });
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        policy.WithOrigins(corsOrigins ?? Array.Empty<string>())
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
 
 // Configure OpenTelemetry
@@ -139,7 +148,6 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
-        // Customize BadRequest responses when model validation fails
         options.InvalidModelStateResponseFactory = context =>
         {
             var problemDetails = new ValidationProblemDetails(context.ModelState)
@@ -157,11 +165,13 @@ builder.Services.AddControllers()
         };
     });
 
-builder.Services.AddSwaggerGen(c => 
+// -------------------- Swagger --------------------
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = builder.Configuration["Swagger:ApiTitle"] ?? "BookingService API", 
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = builder.Configuration["Swagger:ApiTitle"] ?? "BookingService API",
         Version = builder.Configuration["Swagger:ApiVersion"] ?? "v1",
         Description = builder.Configuration["Swagger:ApiDescription"] ?? "Enterprise-level API for booking management",
         Contact = new OpenApiContact
@@ -170,8 +180,7 @@ builder.Services.AddSwaggerGen(c =>
             Email = "support@bookingservice.com"
         },
     });
-    
-    // Set the comments path for the Swagger JSON and UI
+
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -179,7 +188,6 @@ builder.Services.AddSwaggerGen(c =>
         c.IncludeXmlComments(xmlPath);
     }
 
-    // Add security definitions for future authentication
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -205,6 +213,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// -------------------- Build App --------------------
 var app = builder.Build();
 
 // Initialize the database asynchronously
@@ -241,14 +250,13 @@ _ = Task.Run(async () =>
     logger.LogError("Failed to initialize database after {MaxRetries} attempts. Application may not function correctly.", maxRetries);
 });
 
-// Add health checks endpoint
+// -------------------- Health Endpoints --------------------
 app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    Predicate = healthCheck => healthCheck.Tags.Contains("messaging"),
+    Predicate = hc => hc.Tags.Contains("messaging"),
     ResponseWriter = async (context, report) =>
     {
         context.Response.ContentType = "application/json";
-        
         var result = new
         {
             status = report.Status.ToString(),
@@ -260,10 +268,9 @@ app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.Hea
                 duration = e.Value.Duration.ToString()
             })
         };
-        
         await System.Text.Json.JsonSerializer.SerializeAsync(
-            context.Response.Body, 
-            result, 
+            context.Response.Body,
+            result,
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
     }
 });
@@ -274,7 +281,6 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     ResponseWriter = async (context, report) =>
     {
         context.Response.ContentType = "application/json";
-        
         var result = new
         {
             status = report.Status.ToString(),
@@ -286,15 +292,14 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
                 duration = e.Value.Duration.ToString()
             })
         };
-        
         await System.Text.Json.JsonSerializer.SerializeAsync(
-            context.Response.Body, 
-            result, 
+            context.Response.Body,
+            result,
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
     }
 });
 
-// Configure the HTTP request pipeline
+// -------------------- Middleware --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -302,11 +307,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        c.RoutePrefix = string.Empty;
         c.DisplayRequestDuration();
         c.EnableTryItOutByDefault();
         c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
-        c.DefaultModelsExpandDepth(-1); // Hide models section by default
+        c.DefaultModelsExpandDepth(-1);
     });
 }
 else
@@ -315,7 +320,7 @@ else
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-        c.RoutePrefix = "swagger"; // Set Swagger UI at /swagger path in production
+        c.RoutePrefix = "swagger";
     });
 }
 
@@ -323,5 +328,9 @@ app.UseHttpsRedirection();
 app.UseCors("AllowSpecificOrigins");
 app.UseAuthorization();
 app.MapControllers();
+
+// Kubernetes readiness/liveness
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
 
 await app.RunAsync();

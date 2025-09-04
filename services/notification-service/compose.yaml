@@ -16,14 +16,20 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
+      - SPRING_RABBITMQ_VIRTUAL_HOST=/
       - OTEL_SERVICE_NAME=notification-service
       - OTEL_TRACES_EXPORTER=jaeger
       - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
       - OTEL_METRICS_EXPORTER=prometheus
       - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
-    networks:
-      - ticketer-network
-
+  networks:
+    - ticketer-network
+   
   notification-db:
     image: postgres:15
     restart: always

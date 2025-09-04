@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Gateway.Api</name>
+    </assembly>
+    <members>
+        <member name="T:Gateway.Api.Controllers.SwaggerDiscoveryController">
+            <summary>
+            Provides discovery endpoints for Swagger documentation
+            </summary>
+        </member>
+        <member name="M:Gateway.Api.Controllers.SwaggerDiscoveryController.GetSwaggerEndpoints">
+            <summary>
+            Gets all available Swagger endpoints for microservices
+            </summary>
+            <returns>A list of available Swagger endpoints</returns>
+        </member>
+        <member name="T:Gateway.Api.Controllers.SwaggerDiscoveryController.SwaggerEndpoint">
+            <summary>
+            Data class representing a Swagger endpoint
+            </summary>
+        </member>
+        <member name="P:Gateway.Api.Controllers.SwaggerDiscoveryController.SwaggerEndpoint.Name">
+            <summary>
+            The name of the service
+            </summary>
+        </member>
+        <member name="P:Gateway.Api.Controllers.SwaggerDiscoveryController.SwaggerEndpoint.Url">
+            <summary>
+            The URL to the Swagger JSON
+            </summary>
+        </member>
+        <member name="P:Gateway.Api.Controllers.SwaggerDiscoveryController.SwaggerEndpoint.Version">
+            <summary>
+            The API version
+            </summary>
+        </member>
+    </members>
+</doc>
