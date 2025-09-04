@@ -1,36 +1,30 @@
 {
   "format": 1,
   "restore": {
-    "E:\\Projects\\Acadamic\\Cloud\\Ticketer\\services\\Gateway.Api\\Gateway.Api.csproj": {}
+    "/home/runner/work/Ticketer/Ticketer/services/Gateway.Api/Gateway.Api.csproj": {}
   },
   "projects": {
-    "E:\\Projects\\Acadamic\\Cloud\\Ticketer\\services\\Gateway.Api\\Gateway.Api.csproj": {
+    "/home/runner/work/Ticketer/Ticketer/services/Gateway.Api/Gateway.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\Projects\\Acadamic\\Cloud\\Ticketer\\services\\Gateway.Api\\Gateway.Api.csproj",
+        "projectUniqueName": "/home/runner/work/Ticketer/Ticketer/services/Gateway.Api/Gateway.Api.csproj",
         "projectName": "Gateway.Api",
-        "projectPath": "E:\\Projects\\Acadamic\\Cloud\\Ticketer\\services\\Gateway.Api\\Gateway.Api.csproj",
-        "packagesPath": "C:\\Users\\sathu\\.nuget\\packages\\",
-        "outputPath": "E:\\Projects\\Acadamic\\Cloud\\Ticketer\\services\\Gateway.Api\\obj\\",
+        "projectPath": "/home/runner/work/Ticketer/Ticketer/services/Gateway.Api/Gateway.Api.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/Ticketer/Ticketer/services/Gateway.Api/obj/",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\sathu\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net9.0"
+          "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net9.0": {
-            "targetAlias": "net9.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {}
           }
         },
@@ -38,21 +32,15 @@
           "warnAsError": [
             "NU1605"
           ]
-        },
-        "restoreAuditProperties": {
-          "enableAudit": "true",
-          "auditLevel": "low",
-          "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "9.0.300"
+        }
       },
       "frameworks": {
-        "net9.0": {
-          "targetAlias": "net9.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.Extensions.Diagnostics.HealthChecks": {
               "target": "Package",
-              "version": "[9.0.8, )"
+              "version": "[8.0.8, )"
             },
             "OpenTelemetry.Exporter.Console": {
               "target": "Package",
@@ -106,7 +94,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.119/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

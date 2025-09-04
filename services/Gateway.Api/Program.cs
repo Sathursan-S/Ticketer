@@ -27,6 +27,10 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy())
     .AddCheck("gateway-api", () => HealthCheckResult.Healthy());
 
+// Add controllers and HttpClient
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+
 // Enhanced Swagger for the gateway
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -68,6 +72,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddSource("Gateway.Api.Demo")  // Add custom ActivitySource
         .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
@@ -184,6 +189,9 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 
 // Add Prometheus metrics endpoint
 app.MapPrometheusScrapingEndpoint("/metrics");
+
+// Map controllers
+app.MapControllers();
 
 // Reverse proxy
 app.MapReverseProxy();
