@@ -88,19 +88,19 @@ docker_build('ticketer/ticket-service', '.', dockerfile='./services/TicketServic
         run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
     ])
 docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile',
-live_update=[
+    live_update=[
         sync('./services/authentication-service/', '/app'),
-        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
     ])
 docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile',
     live_update=[
         sync('./services/events-service/', '/app'),
-        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
     ])
 docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile',
     live_update=[
         sync('./services/notification-service/', '/app'),
-        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
     ])
 docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile',
     live_update=[
