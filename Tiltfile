@@ -23,6 +23,13 @@ k8s_yaml([
     'k8s/infra/rabbitmq/rabbitmq-service.yaml',
     'k8s/infra/rabbitmq/rabbitmq-pvc.yaml',
     'k8s/infra/rabbitmq/rabbitmq-configmap.yaml',
+    'k8s/secrets/database-secrets.yaml',
+    'k8s/secrets/rabbitmq-secrets.yaml',
+    'k8s/monitoring/prometheus-config.yaml',
+    'k8s/monitoring/prometheus-deployment.yaml',
+    'k8s/monitoring/prometheus-service.yaml',
+    'k8s/monitoring/grafana-deployment.yaml',
+    'k8s/monitoring/grafana-service.yaml',
     'k8s/services/booking-service/deployment.yaml',
     'k8s/services/booking-service/service.yaml',
     'k8s/services/booking-service/booking-db-deployment.yaml',
@@ -78,5 +85,7 @@ k8s_resource('notification-service', port_forwards=['4042:4042'])
 k8s_resource('notification-db', port_forwards=['5440:5432'])
 k8s_resource('payment-service', port_forwards=['8090:8090'])
 k8s_resource('gateway-api', port_forwards=['5266:80'])
+k8s_resource('prometheus', port_forwards=['9090:9090'])
+k8s_resource('grafana', port_forwards=['3000:3000'])
 k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'])
 
