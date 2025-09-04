@@ -34,8 +34,13 @@ spec:
               value: "guest"
             - name: RabbitMq__VirtualHost
               value: "/"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: booking-db-password
             - name: ConnectionStrings__PostgresSQL
-              value: "Host=booking-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;"
+              value: "Host=booking-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=$(POSTGRES_PASSWORD)"
           resources:
             requests:
               cpu: "100m"

@@ -25,7 +25,9 @@ public class SecurityConfig {
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(
-                "/actuator/**"
+                "/actuator/**",
+                "/swagger-ui/**",
+                "/v3/api-docs/**"
             ).permitAll()
             .requestMatchers(
                 "/api/v1/organizer/events/**"

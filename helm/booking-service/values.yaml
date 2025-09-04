@@ -1,0 +1,32 @@
+# Default values for booking-service
+replicaCount: 1
+
+image:
+  repository: ticketer/booking-service
+  tag: "latest"
+
+environment: "Development"
+
+service:
+  type: ClusterIP
+  port: 80
+
+database:
+  host: booking-db
+  port: 5432
+  name: BookingServiceDb
+  username: postgres
+  password: postgres
+
+healthCheck:
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

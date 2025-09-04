@@ -53,8 +53,7 @@ public class SecurityConfig {
                 "/api/v1/auth/register",
                 "/api/v1/auth/refresh",
                 "/api/v1/auth/logout").permitAll()
-            .requestMatchers("/v3/api-docs/**","/swagger-ui/**").permitAll()
-            .requestMatchers("/actuator/**").permitAll()
+            .requestMatchers("/v3/api-docs/**","/swagger-ui/**", "/actuator/**").permitAll()
             .anyRequest().authenticated()
         )
         .authenticationProvider(authenticationProvider())
