@@ -30,9 +30,9 @@ data:
           - targets: ['ticketservice:8080']
         metrics_path: '/metrics'
 
-      - job_name: 'gateway-api'
+      - job_name: 'nginx-ingress-controller'
         static_configs:
-          - targets: ['gateway-api:5266']
+          - targets: ['nginx-ingress-controller:10254']
         metrics_path: '/metrics'
 
       - job_name: 'authentication-service'

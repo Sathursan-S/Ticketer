@@ -105,6 +105,16 @@ k8s_yaml([
     'k8s/services/payment-service/service.yaml',
 ])
 
+# 6. NGINX Ingress API Gateway (depends on all services)
+k8s_yaml([
+    'k8s/ingress/nginx-controller-rbac.yaml',
+    'k8s/ingress/nginx-controller-configmap.yaml',
+    'k8s/ingress/nginx-ingress-class.yaml',
+    'k8s/ingress/nginx-controller-service.yaml',
+    'k8s/ingress/nginx-controller-deployment.yaml',
+    'k8s/ingress/ticketer-ingress.yaml',
+])
+
 
 # Build Docker images
 docker_build('ticketer/booking-service', '.', 
@@ -237,6 +247,28 @@ k8s_resource('payment-service',
     port_forwards=['8090:8090'], 
     labels=["service"],
     resource_deps=['otel-collector', 'jaeger']
+)
+
+# NGINX Ingress API Gateway - depends on all services
+k8s_resource('nginx-ingress-controller', 
+    port_forwards=['80:80', '443:443'], 
+    labels=["gateway"],
+    resource_deps=[
+        'authentication-service',
+        'events-service', 
+        'notification-service',
+        'ticketservice',
+        'bookingservice',
+        'payment-service',
+    ]
+)
+k8s_resource('default-http-backend', 
+    labels=["gateway"],
+    resource_deps=[]
+)
+k8s_resource('ticketer-api-gateway', 
+    labels=["gateway"],
+    resource_deps=['nginx-ingress-controller', 'default-http-backend']
 )
 
 
