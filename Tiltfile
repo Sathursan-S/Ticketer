@@ -81,7 +81,7 @@ docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentServ
 docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile')
 
 # Define resources for Tilt UI
-k8s_resource('bookingservice', port_forwards=['5200:80'], resource_deps=['jaeger', 'rabbitmq', 'booking-db'])
+k8s_resource('bookingservice', port_forwards=['5200:80'])
 k8s_resource('booking-db', port_forwards=['5436:5432'])
 k8s_resource('ticketservice', port_forwards=['8080:8080'])
 k8s_resource('ticket-db', port_forwards=['5437:5432'])

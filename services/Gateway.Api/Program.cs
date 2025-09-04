@@ -69,11 +69,27 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddConsoleExporter()
-        .AddOtlpExporter())
+        .AddOtlpExporter(options =>
+        {
+            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(otlpEndpoint))
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+            }
+        }))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddConsoleExporter()
-        .AddOtlpExporter()
+        .AddOtlpExporter(options =>
+        {
+            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(otlpEndpoint))
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+            }
+        })
         .AddPrometheusExporter());
 
 var app = builder.Build();

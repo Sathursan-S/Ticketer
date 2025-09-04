@@ -112,12 +112,28 @@ builder.Services.AddOpenTelemetry()
         }
 
         // Add OTLP exporter
-        tracing.AddOtlpExporter();
+        tracing.AddOtlpExporter(options =>
+        {
+            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(otlpEndpoint))
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+            }
+        });
     })
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddConsoleExporter()
-        .AddOtlpExporter()
+        .AddOtlpExporter(options =>
+        {
+            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(otlpEndpoint))
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+            }
+        })
         .AddPrometheusExporter());
 
 builder.Services.AddControllers()
@@ -191,24 +207,39 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Initialize the database
-using (var scope = app.Services.CreateScope())
+// Initialize the database asynchronously
+_ = Task.Run(async () =>
 {
+    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BookingSagaDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
-    try
+    const int maxRetries = 10;
+    const int delaySeconds = 5;
+    
+    for (int i = 0; i < maxRetries; i++)
     {
-        logger.LogInformation("Ensuring database is created...");
-        await context.Database.EnsureCreatedAsync();
-        logger.LogInformation("Database initialization completed.");
+        try
+        {
+            logger.LogInformation("Attempting to initialize database (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
+            await context.Database.EnsureCreatedAsync();
+            logger.LogInformation("Database initialization completed successfully.");
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Database initialization failed (attempt {Attempt}/{MaxRetries}): {Message}", i + 1, maxRetries, ex.Message);
+            
+            if (i < maxRetries - 1)
+            {
+                logger.LogInformation("Retrying database initialization in {DelaySeconds} seconds...", delaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+            }
+        }
     }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while initializing the database: {Message}", ex.Message);
-        throw new InvalidOperationException("Failed to initialize the database. See inner exception for details.", ex);
-    }
-}
+    
+    logger.LogError("Failed to initialize database after {MaxRetries} attempts. Application may not function correctly.", maxRetries);
+});
 
 // Add health checks endpoint
 app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
