@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketservice
+  labels:
+    app: ticketservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticketservice
+  template:
+    metadata:
+      labels:
+        app: ticketservice
+    spec:
+      containers:
+        - name: ticketservice
+          image: ticketer/ticket-service:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ASPNETCORE_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: ASPNETCORE_URLS
+            - name: ASPNETCORE_HTTP_PORTS
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: ASPNETCORE_HTTP_PORTS
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=ticket-db;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;"
+            - name: ConnectionStrings__Redis
+              value: "redis:6379"
+            - name: Redis__Endpoints__0
+              value: "redis:6379"
+            - name: DatabaseProvider
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: DatabaseProvider
+            - name: RabbitMq__Host
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: RabbitMq__Host
+            - name: RabbitMq__Username
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: RabbitMq__Username
+            - name: RabbitMq__Password
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: RabbitMq__Password
+            - name: RabbitMq__VirtualHost
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: RabbitMq__VirtualHost
+            - name: RabbitMq__Port
+              valueFrom:
+                configMapKeyRef:
+                  name: ticket-service-config
+                  key: RabbitMq__Port
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/live
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
