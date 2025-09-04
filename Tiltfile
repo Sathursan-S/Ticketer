@@ -71,8 +71,13 @@ k8s_yaml([
     'k8s/services/notification-service/notification-db-service.yaml',
     'k8s/services/payment-service/deployment.yaml',
     'k8s/services/payment-service/service.yaml',
-    'k8s/services/gateway-api/deployment.yaml',
-    'k8s/services/gateway-api/service.yaml',
+    'k8s/api-gateway/kong/kong-namespace.yaml',
+    'k8s/api-gateway/kong/kong-postgres.yaml',
+    'k8s/api-gateway/kong/kong-migration.yaml',
+    'k8s/api-gateway/kong/kong-deployment.yaml',
+    'k8s/api-gateway/kong/kong-ingress-controller.yaml',
+    'k8s/api-gateway/kong-plugins.yaml',
+    'k8s/api-gateway/ingress.yaml',
 ])
 
 # Build Docker images
@@ -107,11 +112,6 @@ docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentServ
         sync('./services/PaymentService/', '/app'),
         run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
     ])
-docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile',
-    live_update=[
-        sync('./services/Gateway.Api/', '/app'),
-        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
-    ])
 
 # Define resources for Tilt UI
 k8s_resource('bookingservice', port_forwards=['5200:80'], labels=["service"])
@@ -126,7 +126,9 @@ k8s_resource('events-db', port_forwards=['5439:5432'], labels=["service"])
 k8s_resource('notification-service', port_forwards=['4042:4042'], labels=["service"])
 k8s_resource('notification-db', port_forwards=['5440:5432'], labels=["service"])
 k8s_resource('payment-service', port_forwards=['8090:8090'], labels=["service"])
-k8s_resource('gateway-api', port_forwards=['5266:80'], labels=["service"])
+k8s_resource('kong', port_forwards=['8000:8000', '8001:8001'], labels=["api-gateway"], new_name="kong-gateway")
+k8s_resource('kong-postgres', labels=["api-gateway"])
+k8s_resource('kong-ingress-controller', labels=["api-gateway"])
 k8s_resource('prometheus', 
     port_forwards=['9090:9090'], 
     labels=["monitoring"],

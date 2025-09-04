@@ -1,0 +1,53 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-auth
+  namespace: default
+config:
+  secret_is_base64: false
+  key_claim_name: iss
+  claims_to_verify:
+    - exp
+plugin: jwt
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: cors-plugin
+  namespace: default
+config:
+  origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "https://localhost:5173"
+  methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  headers:
+    - Accept
+    - Accept-Version
+    - Content-Length
+    - Content-MD5
+    - Content-Type
+    - Date
+    - Authorization
+  exposed_headers:
+    - X-Auth-Token
+  credentials: true
+  max_age: 3600
+plugin: cors
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting
+  namespace: default
+config:
+  minute: 100
+  hour: 1000
+  policy: local
+plugin: rate-limiting
