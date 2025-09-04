@@ -9,16 +9,19 @@ echo "=============================================="
 # Check all pods
 echo "📦 Pod Status:"
 kubectl get pods --sort-by=.metadata.name
+kubectl get pods -n kong --sort-by=.metadata.name
 echo ""
 
 # Check all services
 echo "🌐 Service Status:"
 kubectl get svc --sort-by=.metadata.name
+kubectl get svc -n kong --sort-by=.metadata.name
 echo ""
 
 # Check deployments
 echo "🚀 Deployment Status:"
 kubectl get deployments --sort-by=.metadata.name
+kubectl get deployments -n kong --sort-by=.metadata.name
 echo ""
 
 # Check databases
@@ -29,11 +32,13 @@ echo ""
 # Check infrastructure
 echo "🏗️  Infrastructure:"
 kubectl get pods -l app=rabbitmq,redis --sort-by=.metadata.name
+kubectl get pods -n kong -l app=kong,kong-postgres --sort-by=.metadata.name
 echo ""
 
 # Health check summary
 echo "❤️  Health Check Endpoints:"
-echo "  Gateway API: http://localhost:5266/health"
+echo "  Kong API Gateway: http://localhost:8000/"
+echo "  Kong Admin API: http://localhost:8001/status"
 echo "  Booking Service: http://localhost:5200/health"
 echo "  Ticket Service: http://localhost:8080/health/live"
 echo "  Payment Service: http://localhost:8090/health"
@@ -44,7 +49,8 @@ echo ""
 
 # Port forwarding reminder
 echo "🔗 Port Forwarding (if needed):"
-echo "  kubectl port-forward svc/gateway-api 5266:80"
+echo "  kubectl port-forward svc/kong-proxy 8000:80 -n kong"
+echo "  kubectl port-forward svc/kong-admin 8001:8001 -n kong"
 echo "  kubectl port-forward svc/bookingservice 5200:80"
 echo "  kubectl port-forward svc/ticketservice 8080:8080"
 echo "  kubectl port-forward svc/authentication-service 4040:4040"

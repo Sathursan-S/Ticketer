@@ -43,9 +43,17 @@ kubectl apply -f k8s/services/notification-service/
 echo "💳 Deploying Payment Service..."
 kubectl apply -f k8s/services/payment-service/
 
-# Gateway API
-echo "🌐 Deploying Gateway API..."
-kubectl apply -f k8s/services/gateway-api/
+# Kong API Gateway
+echo "🌐 Deploying Kong API Gateway..."
+kubectl apply -f k8s/api-gateway/kong/kong-namespace.yaml
+kubectl apply -f k8s/api-gateway/kong/kong-postgres.yaml
+echo "⏳ Waiting for PostgreSQL to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/kong-postgres -n kong
+kubectl apply -f k8s/api-gateway/kong/kong-migration.yaml
+kubectl wait --for=condition=complete --timeout=300s job/kong-migration -n kong
+kubectl apply -f k8s/api-gateway/kong/kong-deployment.yaml
+kubectl apply -f k8s/api-gateway/kong-plugins.yaml
+kubectl apply -f k8s/api-gateway/ingress.yaml
 
 # Wait for all deployments to be ready
 echo "⏳ Waiting for all services to be ready..."
@@ -55,7 +63,7 @@ kubectl wait --for=condition=available --timeout=600s deployment/authentication-
 kubectl wait --for=condition=available --timeout=600s deployment/events-service
 kubectl wait --for=condition=available --timeout=600s deployment/notification-service
 kubectl wait --for=condition=available --timeout=600s deployment/payment-service
-kubectl wait --for=condition=available --timeout=600s deployment/gateway-api
+kubectl wait --for=condition=available --timeout=600s deployment/kong -n kong
 
 echo "✅ All services deployed successfully!"
 echo ""
@@ -63,13 +71,19 @@ echo "📊 Service Status:"
 kubectl get pods
 echo ""
 echo "🔗 Access URLs:"
-echo "  Gateway API: http://localhost:5266"
-echo "  Booking Service: http://localhost:5200"
-echo "  Ticket Service: http://localhost:8080"
-echo "  Authentication Service: http://localhost:4040"
-echo "  Events Service: http://localhost:4041"
-echo "  Notification Service: http://localhost:4042"
-echo "  Payment Service: http://localhost:8090"
+echo "  Kong API Gateway: http://localhost:8000"
+echo "  Kong Admin API: http://localhost:8001"
+echo "  API Endpoints:"
+echo "    - Auth: http://localhost:8000/api/auth"
+echo "    - Events: http://localhost:8000/api/events"
+echo "    - Tickets: http://localhost:8000/api/tickets"
+echo "    - Booking: http://localhost:8000/api/booking"
+echo "  Booking Service (direct): http://localhost:5200"
+echo "  Ticket Service (direct): http://localhost:8080"
+echo "  Authentication Service (direct): http://localhost:4040"
+echo "  Events Service (direct): http://localhost:4041"
+echo "  Notification Service (direct): http://localhost:4042"
+echo "  Payment Service (direct): http://localhost:8090"
 echo ""
 echo "🗄️  Database Access:"
 echo "  Booking DB: localhost:5436"

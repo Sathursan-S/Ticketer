@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-migration
+  namespace: kong
+  labels:
+    app: kong-migration
+spec:
+  template:
+    metadata:
+      labels:
+        app: kong-migration
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: kong-migration
+        image: kong:3.4
+        command: ["kong", "migrations", "bootstrap"]
+        env:
+        - name: KONG_DATABASE
+          value: postgres
+        - name: KONG_PG_HOST
+          value: kong-postgres
+        - name: KONG_PG_PORT
+          value: "5432"
+        - name: KONG_PG_DATABASE
+          value: kong
+        - name: KONG_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: kong-postgres-secret
+              key: postgres-user
+        - name: KONG_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kong-postgres-secret
+              key: postgres-password
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:13
+        command: 
+        - sh
+        - -c
+        - until pg_isready -h kong-postgres -p 5432 -U kong; do echo waiting for postgres; sleep 2; done;
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kong-postgres-secret
+              key: postgres-password
