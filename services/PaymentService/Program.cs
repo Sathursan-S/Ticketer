@@ -75,6 +75,20 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddSource("MassTransit")
         .AddConsoleExporter()
+        .AddJaegerExporter(options =>
+        {
+            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
+            if (!string.IsNullOrEmpty(jaegerEndpoint))
+            {
+                options.AgentHost = jaegerEndpoint.Split(':')[0];
+                options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
+            }
+            else
+            {
+                options.AgentHost = "jaeger";
+                options.AgentPort = 6831;
+            }
+        })
         .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
