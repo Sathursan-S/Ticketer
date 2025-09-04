@@ -21,10 +21,14 @@ public static class HealthCheckExtensions
         healthChecksBuilder.AddDbContextCheck<TicketDbContext>("database", 
             tags: new[] { "db", "data", "ready" });
             
-        // Add Redis health check
+        // Add Redis health check with more configuration
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        healthChecksBuilder.AddRedis(redisConnectionString, "redis", 
-            tags: new[] { "redis", "cache", "ready" });
+        healthChecksBuilder.AddRedis(
+            redisConnectionString, 
+            "redis", 
+            tags: new[] { "redis", "cache", "ready" },
+            timeout: TimeSpan.FromSeconds(5),
+            failureStatus: HealthStatus.Degraded);
             
         // RabbitMQ health check is registered separately in Program.cs
 

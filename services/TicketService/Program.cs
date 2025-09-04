@@ -132,18 +132,50 @@ builder.Services.AddDbContext<TicketDbContext>(options =>
 // Configure AutoMapper
 builder.Services.AddAutoMapper(typeof(MapperProfile));
 
-// Add Redis configuration
+// Add Redis configuration with improved resilience
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-    return ConnectionMultiplexer.Connect(redisConnectionString);
+    
+    // Configure Redis with better resilience options
+    var options = ConfigurationOptions.Parse(redisConnectionString);
+    options.AbortOnConnectFail = false; // Don't crash on startup if Redis is down
+    options.ConnectRetry = 5;
+    options.ConnectTimeout = 5000;
+    options.SyncTimeout = 3000;
+    
+    return ConnectionMultiplexer.Connect(options);
 });
 
-// Add RedLock distributed lock
+// Add RedLock distributed lock with support for multiple Redis instances
 builder.Services.AddSingleton<RedLockFactory>(sp =>
 {
+    var configuration = sp.GetRequiredService<IConfiguration>();
     var connectionMultiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+    
+    // Check if multiple Redis endpoints are configured
+    var endpoints = configuration.GetSection("Redis:Endpoints").Get<string[]>();
+    
+    if (endpoints != null && endpoints.Length > 0)
+    {
+        // Create multiplexers for all configured endpoints
+        var multiplexers = new List<RedLockMultiplexer> { new(connectionMultiplexer) };
+        
+        foreach (var endpoint in endpoints)
+        {
+            if (!string.IsNullOrEmpty(endpoint) && endpoint != configuration.GetConnectionString("Redis"))
+            {
+                var options = ConfigurationOptions.Parse(endpoint);
+                options.AbortOnConnectFail = false;
+                multiplexers.Add(new RedLockMultiplexer(ConnectionMultiplexer.Connect(options)));
+            }
+        }
+        
+        return RedLockFactory.Create(multiplexers);
+    }
+    
+    // Fall back to single Redis instance if no endpoints configured
     return RedLockFactory.Create(new List<RedLockMultiplexer> { new(connectionMultiplexer) });
 });
 

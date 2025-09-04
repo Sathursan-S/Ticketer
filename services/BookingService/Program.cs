@@ -88,7 +88,8 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddHealthChecks()
-    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" });
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" })
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
 builder.Services.AddCors(options =>
 {
@@ -143,6 +144,31 @@ builder.Services.AddSwaggerGen(c =>
     {
         c.IncludeXmlComments(xmlPath);
     }
+
+    // Add security definitions for future authentication
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();
@@ -213,14 +239,34 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     }
 });
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-    c.RoutePrefix = string.Empty; 
-});
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
+        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        c.DisplayRequestDuration();
+        c.EnableTryItOutByDefault();
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+        c.DefaultModelsExpandDepth(-1); // Hide models section by default
+    });
+}
+else
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
+        c.RoutePrefix = "swagger"; // Set Swagger UI at /swagger path in production
+    });
+}
 
+app.UseHttpsRedirection();
 app.UseCors("AllowSpecificOrigins");
+app.UseAuthorization();
 app.MapControllers();
 
 await app.RunAsync();

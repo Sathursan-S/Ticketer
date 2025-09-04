@@ -17,139 +17,66 @@ print("""
 # Enable Kubernetes
 allow_k8s_contexts('docker-desktop')  # Add your context here if different
 
-# Load k8s resources from YAML files
+# Load Kubernetes manifests
 k8s_yaml([
-    'k8s/namespace.yaml',
-    'k8s/configmaps.yaml',
-    'k8s/gateway-config.yaml', 
-    'k8s/storage.yaml',
-    'k8s/services.yaml',
-    'k8s/deployments.yaml',
-    'k8s/ingress.yaml'
+    'k8s/infra/rabbitmq/rabbitmq-deployment.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-service.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-pvc.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-configmap.yaml',
+    'k8s/services/booking-service/deployment.yaml',
+    'k8s/services/booking-service/service.yaml',
+    'k8s/services/booking-service/booking-db-deployment.yaml',
+    'k8s/services/booking-service/booking-db-service.yaml',
+    'k8s/services/booking-service/booking-db-pvc.yaml',
+    'k8s/services/ticket-service/deployment.yaml',
+    'k8s/services/ticket-service/service.yaml',
+    'k8s/services/ticket-service/ticket-db-deployment.yaml',
+    'k8s/services/ticket-service/ticket-db-service.yaml',
+    'k8s/services/ticket-service/ticket-db-pvc.yaml',
+    'k8s/services/ticket-service/redis-deployment.yaml',
+    'k8s/services/ticket-service/redis-service.yaml',
+    'k8s/services/ticket-service/redis-pvc.yaml',
+    'k8s/services/ticket-service/ticket-service-configmap.yaml',
+    'k8s/services/authentication-service/deployment.yaml',
+    'k8s/services/authentication-service/service.yaml',
+    'k8s/services/authentication-service/auth-db-deployment.yaml',
+    'k8s/services/authentication-service/auth-db-service.yaml',
+    'k8s/services/events-service/deployment.yaml',
+    'k8s/services/events-service/service.yaml',
+    'k8s/services/events-service/events-db-deployment.yaml',
+    'k8s/services/events-service/events-db-service.yaml',
+    'k8s/services/notification-service/deployment.yaml',
+    'k8s/services/notification-service/service.yaml',
+    'k8s/services/notification-service/notification-db-deployment.yaml',
+    'k8s/services/notification-service/notification-db-service.yaml',
+    'k8s/services/payment-service/deployment.yaml',
+    'k8s/services/payment-service/service.yaml',
+    'k8s/services/gateway-api/deployment.yaml',
+    'k8s/services/gateway-api/service.yaml',
 ])
 
-# Build images for .NET services with live update
-# BookingService
-docker_build(
-    'bookingservice:1.0.0',
-    context='.',
-    dockerfile='./services/BookingService/Dockerfile',
-    live_update=[
-        sync('./services/BookingService', '/src/services/BookingService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
+# Build Docker images
+docker_build('ticketer/booking-service', '.', dockerfile='./services/BookingService/Dockerfile')
+docker_build('ticketer/ticket-service', '.', dockerfile='./services/TicketService/Dockerfile')
+docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile')
+docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile')
+docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile')
+docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile')
+docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile')
 
-# TicketService
-docker_build(
-    'ticketservice:1.0.0',
-    context='.',
-    dockerfile='./services/TicketService/Dockerfile',
-    live_update=[
-        sync('./services/TicketService', '/src/services/TicketService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
+# Define resources for Tilt UI
+k8s_resource('bookingservice', port_forwards=['5200:80'])
+k8s_resource('booking-db', port_forwards=['5436:5432'])
+k8s_resource('ticketservice', port_forwards=['8080:8080'])
+k8s_resource('ticket-db', port_forwards=['5437:5432'])
+k8s_resource('redis', port_forwards=['6379:6379'])
+k8s_resource('authentication-service', port_forwards=['4040:4040'])
+k8s_resource('auth-db', port_forwards=['5438:5432'])
+k8s_resource('events-service', port_forwards=['4041:4041'])
+k8s_resource('events-db', port_forwards=['5439:5432'])
+k8s_resource('notification-service', port_forwards=['4042:4042'])
+k8s_resource('notification-db', port_forwards=['5440:5432'])
+k8s_resource('payment-service', port_forwards=['8090:8090'])
+k8s_resource('gateway-api', port_forwards=['5266:80'])
+k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'])
 
-# PaymentService
-docker_build(
-    'paymentservice:1.0.0',
-    context='.',
-    dockerfile='./services/PaymentService/Dockerfile',
-    live_update=[
-        sync('./services/PaymentService', '/src/services/PaymentService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
-
-# Gateway API
-docker_build(
-    'gatewayapi:1.0.0',
-    context='.',
-    dockerfile='./services/Gateway.Api/Dockerfile',
-    live_update=[
-        sync('./services/Gateway.Api', '/src/services/Gateway.Api'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
-
-# Configure resource settings
-# BookingService resource
-k8s_resource(
-    'booking-service',
-    port_forwards=['8040:80'],
-    resource_deps=['bookingservice-db', 'rabbitmq']
-)
-
-# TicketService resource
-k8s_resource(
-    'ticket-service',
-    port_forwards=['8082:80'],
-    resource_deps=['postgres-ticket', 'rabbitmq']
-)
-
-# PaymentService resource
-k8s_resource(
-    'payment-service',
-    port_forwards=['8090:80'],
-    resource_deps=['rabbitmq']
-)
-
-# Gateway API resource
-k8s_resource(
-    'gateway-api',
-    port_forwards=['5000:80'],
-    resource_deps=[
-        'booking-service',
-        'ticket-service', 
-        'payment-service'
-    ],
-    labels=['api']
-)
-
-# RabbitMQ resource
-k8s_resource(
-    'rabbitmq',
-    port_forwards=['5672:5672', '15672:15672'],
-    labels=['infrastructure']
-)
-
-# Database resources
-k8s_resource(
-    'postgres-booking',
-    port_forwards=['5436:5432'],
-    labels=['infrastructure', 'database']
-)
-
-k8s_resource(
-    'postgres-ticket',
-    port_forwards=['5435:5432'],
-    labels=['infrastructure', 'database']
-)
-
-# Local resources for helpful commands
-local_resource(
-    'k8s-dashboard',
-    cmd='echo "Access Kubernetes Dashboard at http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"',
-    auto_init=False
-)
-
-local_resource(
-    'open-swagger',
-    cmd='echo "Access API Gateway Swagger at http://localhost:5000/swagger/index.html"',
-    auto_init=False
-)
-
-local_resource(
-    'open-rabbitmq',
-    cmd='echo "Access RabbitMQ Management UI at http://localhost:15672 (guest/guest)"',
-    auto_init=False
-)
-
-# Display project information when Tilt starts
-local_resource(
-    'project-info',
-    cmd='',
-    auto_init=True,
-    serve_cmd='echo "Ticketer Microservices project is running. Access the API Gateway at http://localhost:5000"'
-)
