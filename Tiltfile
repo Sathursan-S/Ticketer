@@ -105,11 +105,6 @@ k8s_yaml([
     'k8s/services/payment-service/service.yaml',
 ])
 
-# 6. Gateway API (depends on all services)
-k8s_yaml([
-    'k8s/services/gateway-api/deployment.yaml',
-    'k8s/services/gateway-api/service.yaml',
-])
 
 # Build Docker images
 docker_build('ticketer/booking-service', '.', 
@@ -141,11 +136,6 @@ docker_build('ticketer/notification-service', './services/notification-service',
 docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile',
     live_update=[
         sync('./services/PaymentService/', '/app'),
-        run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
-    ])
-docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile',
-    live_update=[
-        sync('./services/Gateway.Api/', '/app'),
         run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
     ])
 
@@ -249,21 +239,6 @@ k8s_resource('payment-service',
     resource_deps=['otel-collector', 'jaeger']
 )
 
-# Gateway API depends on all services
-k8s_resource('gateway-api', 
-    port_forwards=['5266:80'], 
-    labels=["gateway"],
-    resource_deps=[
-        'authentication-service',
-        'events-service', 
-        'notification-service',
-        'ticketservice',
-        'bookingservice',
-        'payment-service',
-        'otel-collector',
-        'jaeger',
-    ]
-)
 
 # OpenTelemetry and Jaeger Distributed Tracing
 #
