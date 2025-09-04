@@ -283,6 +283,8 @@ app.UseRouting();
 app.MapControllers();
 
 // Configure health check endpoints
-app.UseHealthChecks();
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health");
 
 await app.RunAsync();

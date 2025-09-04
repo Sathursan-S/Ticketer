@@ -54,6 +54,9 @@ builder.Services.AddMassTransit(config =>
 
 builder.Services.AddSingleton<IPaymentService, PaymentService.Application.Services.PaymentService>();
 
+// Add health checks
+builder.Services.AddHealthChecks();
+
 // Configure logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -70,5 +73,10 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Payment Service API V1");
 });
+
+// Map health check endpoints
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health");
 
 await app.RunAsync();

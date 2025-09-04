@@ -8,7 +8,6 @@ import org.shathursan.dto.request.NotificationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -19,7 +18,7 @@ public class PaymentListeners {
   public PaymentListeners(NotificationService svc) { this.svc = svc; }
 
   @RabbitListener(queues = RabbitConfig.Q_SUCCESS)
-  public void onPaymentSucceeded(@Payload PaymentSucceeded m) {
+  public void onPaymentSucceeded(PaymentSucceeded m) {
     log.info(" Payment Succeeded booking={} customer={} amount={} {}",
         m.getBookingId(), m.getCustomerId(), m.getAmount(), m.getCurrency());
     svc.sendNotification(new NotificationRequest(
@@ -31,7 +30,7 @@ public class PaymentListeners {
   }
 
   @RabbitListener(queues = RabbitConfig.Q_FAILED)
-  public void onPaymentFailed(@Payload PaymentFailed m) {
+  public void onPaymentFailed(PaymentFailed m) {
     log.warn(" Payment Failed booking={} customer={} reason={}",
         m.getBookingId(), m.getCustomerId(), m.getReason());
     svc.sendNotification(new NotificationRequest(

@@ -14,7 +14,7 @@ COPY pom.xml .
 # Leverage a cache mount to /root/.m2 so that subsequent builds don't have to
 # re-download packages.
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn dependency:go-offline -DskipTests
+    mvn dependency:go-offline -DskipTests -U
 
 ################################################################################
 

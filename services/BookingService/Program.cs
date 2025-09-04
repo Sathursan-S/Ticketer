@@ -269,4 +269,8 @@ app.UseCors("AllowSpecificOrigins");
 app.UseAuthorization();
 app.MapControllers();
 
+// Map health check endpoints for Kubernetes
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
+
 await app.RunAsync();
