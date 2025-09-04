@@ -6,12 +6,14 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.shathursan.client.NotificationClient;
+import org.shathursan.contracts.EventCreated;
 import org.shathursan.dto.OrganizerDetails;
 import org.shathursan.dto.request.EventRequest;
 import org.shathursan.dto.request.EventUpdateRequest;
 import org.shathursan.dto.response.ContentResponse;
 import org.shathursan.dto.response.EventResponse;
 import org.shathursan.entity.Event;
+import org.shathursan.messaging.EventPublisher;
 import org.shathursan.repository.EventRepository;
 import org.shathursan.service.EventService;
 import org.shathursan.util.ApiEndpoints;
@@ -36,6 +38,7 @@ public class OrganizerEventController {
   private final EventService eventService;
   private final NotificationClient notificationClient;
   private final EventRepository eventRepository;
+  private final EventPublisher eventPublisher;
 
   @PreAuthorize("hasRole('ORGANIZER')")
   @PostMapping(ApiEndpoints.ADD_EVENT)
@@ -45,6 +48,9 @@ public class OrganizerEventController {
     String notificationStatus;
     String message = "Event created successfully.";
     try {
+        eventPublisher.publishEventCreated(
+            new EventCreated(event.getId(), event.getTicketCapacity())
+        );
       notificationClient.sendNotification(
           organizerDetails().getUserEmail(), "Event Created",
           "Your event " + event.getEventName() + " has been created successfully."
