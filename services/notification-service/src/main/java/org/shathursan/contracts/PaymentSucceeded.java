@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,10 +12,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentSucceeded {
-  @JsonProperty("BookingId")       private UUID bookingId;
-  @JsonProperty("CustomerId")      private UUID customerId;
-  @JsonProperty("PaymentIntentId") private String paymentIntentId;
-  @JsonProperty("Amount")          private double amount;
-  @JsonProperty("Currency")        private String currency;
-  @JsonProperty("PaidAtUtc")       private Instant paidAtUtc;
+    @JsonProperty("BookingId")
+    private UUID bookingId;
+    @JsonProperty("PaymentIntentId")
+    private String paymentIntentId;
+    @JsonProperty("CustomerId")
+    private String customerId;
+    @JsonProperty("Amount")
+    private double amount;
+    @JsonProperty("PaymentMethod")
+    private String paymentMethod;
 }

@@ -30,11 +30,6 @@ data:
           - targets: ['ticketservice:8080']
         metrics_path: '/metrics'
 
-      - job_name: 'gateway-api'
-        static_configs:
-          - targets: ['gateway-api:5266']
-        metrics_path: '/metrics'
-
       - job_name: 'authentication-service'
         static_configs:
           - targets: ['authentication-service:4040']

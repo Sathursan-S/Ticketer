@@ -275,13 +275,6 @@ k8s_resource('gateway-api',
 # Add startup probes and resource management
 update_settings(max_parallel_updates=3, k8s_upsert_timeout_secs=300)
 
-# Configure resource limits for better stability
-local_resource('check-cluster-ready', 
-    cmd='kubectl wait --for=condition=Ready pod --all --timeout=300s --all-namespaces',
-    labels=["health-check"],
-    allow_parallel=True
-)
-
 # Health check for databases before starting services
 local_resource('wait-for-databases',
     cmd='''
