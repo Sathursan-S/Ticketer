@@ -130,13 +130,17 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=ticketservice-db;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
+      - ConnectionStrings__Redis=redis:6379
       - DatabaseProvider=PostgreSQL
+      - Redis__Endpoints__0=redis:6379
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
       - RabbitMq__VirtualHost=/
     depends_on:
       ticketservice-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -170,7 +174,7 @@ services:
       context: .
       dockerfile: ./services/BookingService/Dockerfile
     ports:
-    - "8080:8080"  # Updated to use standard HTTP port internally
+    - "5200:80"  # Updated to use port 5200 externally
     depends_on:
       bookingservice-db:
         condition: service_healthy
@@ -246,6 +250,36 @@ services:
       retries: 5
     networks:
       - ticketer-network
+      
+  # Redis for TicketService caching and distributed locking
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+    
+  # Redis Commander - Web UI for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - ticketer-network
+    restart: unless-stopped
 
   apigateway:
     image: ${DOCKER_REGISTRY-}ticketer-api-gateway
@@ -282,6 +316,7 @@ volumes:
   ticketservice-db-data:
   bookingservice-db-data:
   rabbitmq-data:
+  redis-data:
 
 networks:
   ticketer-network:

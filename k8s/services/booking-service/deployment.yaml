@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookingservice
+  labels:
+    app: bookingservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookingservice
+  template:
+    metadata:
+      labels:
+        app: bookingservice
+    spec:
+      containers:
+        - name: bookingservice
+          image: ticketer/booking-service:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: ASPNETCORE_HTTP_PORTS
+              value: "80"
+            - name: RabbitMq__Host
+              value: "rabbitmq"
+            - name: RabbitMq__Username
+              value: "guest"
+            - name: RabbitMq__Password
+              value: "guest"
+            - name: RabbitMq__VirtualHost
+              value: "/"
+            - name: ConnectionStrings__PostgresSQL
+              value: "Host=booking-db;Port=5432;Database=BookingServiceDb;Username=postgres;Password=postgres;"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+
+          # Uncomment and configure if you have persistent storage
+          # volumeMounts:
+          #   - name: booking-db-data
+          #     mountPath: /path/in/container
+      # volumes:
+      #   - name: booking-db-data
+      #     persistentVolumeClaim:
+      #       claimName: booking-db-pvc

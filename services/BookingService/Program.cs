@@ -72,7 +72,8 @@ builder.Services.AddSingleton(serviceProvider =>
 
 // Register health checks
 builder.Services.AddHealthChecks()
-    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" });
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "services", "messaging" })
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -120,17 +121,41 @@ builder.Services.AddSwaggerGen(c =>
         {
             Name = "API Support",
             Email = "support@bookingservice.com"
-            // URL from configuration can be added here if needed
         },
     });
     
     // Set the comments path for the Swagger JSON and UI
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
 
-    // Security definitions can be added here when authentication is implemented
-    // For now, we'll keep the API endpoints accessible without authentication
+    // Add security definitions for future authentication
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();
@@ -207,15 +232,34 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     }
 });
 
-// Enable Swagger for API documentation
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
-    c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
-});
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
+        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        c.DisplayRequestDuration();
+        c.EnableTryItOutByDefault();
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+        c.DefaultModelsExpandDepth(-1); // Hide models section by default
+    });
+}
+else
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API v1");
+        c.RoutePrefix = "swagger"; // Set Swagger UI at /swagger path in production
+    });
+}
 
+app.UseHttpsRedirection();
 app.UseCors("AllowSpecificOrigins");
+app.UseAuthorization();
 app.MapControllers();
 
 await app.RunAsync();

@@ -17,141 +17,24 @@ print("""
 # Enable Kubernetes
 allow_k8s_contexts('docker-desktop')  # Add your context here if different
 
-# Load k8s resources from YAML files
+# Load Kubernetes manifests
 k8s_yaml([
-    'k8s/old/namespace.yaml',
-    'k8s/old/configmaps.yaml',
-    'k8s/old/gateway-config.yaml', 
-    'k8s/old/storage.yaml',
-    'k8s/old/services.yaml',
-    'k8s/old/deployments.yaml',
-    'k8s/old/ingress.yaml'
+    'k8s/infra/rabbitmq/rabbitmq-deployment.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-service.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-pvc.yaml',
+    'k8s/infra/rabbitmq/rabbitmq-configmap.yaml',
+    'k8s/services/booking-service/deployment.yaml',
+    'k8s/services/booking-service/service.yaml',
+    'k8s/services/booking-service/booking-db-deployment.yaml',
+    'k8s/services/booking-service/booking-db-service.yaml',
+    'k8s/services/booking-service/booking-db-pvc.yaml',
 ])
 
-# Build images for .NET services with live update
-# BookingService
-docker_build(
-    'bookingservice:1.0.0',
-    context='.',
-    dockerfile='./services/BookingService/Dockerfile',
-    live_update=[
-        sync('./services/BookingService', '/src/services/BookingService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
+# Build Docker images
+docker_build('ticketer/booking-service', '.', dockerfile='./services/BookingService/Dockerfile')
 
-# TicketService
-docker_build(
-    'ticketservice:1.0.0',
-    context='.',
-    dockerfile='./services/TicketService/Dockerfile',
-    live_update=[
-        sync('./services/TicketService', '/src/services/TicketService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
+# Define resources for Tilt UI
+k8s_resource('bookingservice', port_forwards=['5200:80'])
+k8s_resource('booking-db', port_forwards=['5436:5432'])
+k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'])
 
-# PaymentService
-docker_build(
-    'paymentservice:1.0.0',
-    context='.',
-    dockerfile='./services/PaymentService/Dockerfile',
-    live_update=[
-        sync('./services/PaymentService', '/src/services/PaymentService'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
-
-# Gateway API
-docker_build(
-    'gatewayapi:1.0.0',
-    context='.',
-    dockerfile='./services/Gateway.Api/Dockerfile',
-    live_update=[
-        sync('./services/Gateway.Api', '/src/services/Gateway.Api'),
-        sync(SHARED_LIB_LOCAL, SHARED_LIB_CONTAINER)
-    ]
-)
-
-docker_compose('./docker-compose.yml')
-
-# Configure resource settings
-# BookingService resource
-k8s_resource(
-    'booking-service',
-    port_forwards=['8040:80'],
-    resource_deps=['bookingservice-db', 'rabbitmq']
-)
-
-# TicketService resource
-k8s_resource(
-    'ticket-service',
-    port_forwards=['8082:80'],
-    resource_deps=['postgres-ticket', 'rabbitmq']
-)
-
-# PaymentService resource
-k8s_resource(
-    'payment-service',
-    port_forwards=['8090:80'],
-    resource_deps=['rabbitmq']
-)
-
-# Gateway API resource
-k8s_resource(
-    'gateway-api',
-    port_forwards=['5000:80'],
-    resource_deps=[
-        'booking-service',
-        'ticket-service', 
-        'payment-service'
-    ],
-    labels=['api']
-)
-
-# RabbitMQ resource
-k8s_resource(
-    'rabbitmq',
-    port_forwards=['5672:5672', '15672:15672'],
-    labels=['infrastructure']
-)
-
-# Database resources
-k8s_resource(
-    'postgres-booking',
-    port_forwards=['5436:5432'],
-    labels=['infrastructure', 'database']
-)
-
-k8s_resource(
-    'postgres-ticket',
-    port_forwards=['5435:5432'],
-    labels=['infrastructure', 'database']
-)
-
-# Local resources for helpful commands
-local_resource(
-    'k8s-dashboard',
-    cmd='echo "Access Kubernetes Dashboard at http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"',
-    auto_init=False
-)
-
-local_resource(
-    'open-swagger',
-    cmd='echo "Access API Gateway Swagger at http://localhost:5000/swagger/index.html"',
-    auto_init=False
-)
-
-local_resource(
-    'open-rabbitmq',
-    cmd='echo "Access RabbitMQ Management UI at http://localhost:15672 (guest/guest)"',
-    auto_init=False
-)
-
-# Display project information when Tilt starts
-local_resource(
-    'project-info',
-    cmd='',
-    auto_init=True,
-    serve_cmd='echo "Ticketer Microservices project is running. Access the API Gateway at http://localhost:5000"'
-)

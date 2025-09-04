@@ -2,10 +2,10 @@ version: '3.8'
 
 services:
   ticketservice:
-    image: ${DOCKER_REGISTRY-}ticket-service
+    image: ${DOCKER_REGISTRY-}ticketservice
     build:
-      context: ../../
-      dockerfile: ./services/TicketService/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
       - "8443:443"
