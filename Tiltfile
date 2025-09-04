@@ -81,19 +81,19 @@ docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentServ
 docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Dockerfile')
 
 # Define resources for Tilt UI
-k8s_resource('bookingservice', port_forwards=['5200:80'])
-k8s_resource('booking-db', port_forwards=['5436:5432'])
-k8s_resource('ticketservice', port_forwards=['8080:8080'])
-k8s_resource('ticket-db', port_forwards=['5437:5432'])
-k8s_resource('redis', port_forwards=['6379:6379'])
-k8s_resource('authentication-service', port_forwards=['4040:4040'])
-k8s_resource('auth-db', port_forwards=['5438:5432'])
-k8s_resource('events-service', port_forwards=['4041:4041'])
-k8s_resource('events-db', port_forwards=['5439:5432'])
-k8s_resource('notification-service', port_forwards=['4042:4042'])
-k8s_resource('notification-db', port_forwards=['5440:5432'])
-k8s_resource('payment-service', port_forwards=['8090:8090'])
-k8s_resource('gateway-api', port_forwards=['5266:80'])
+k8s_resource('bookingservice', port_forwards=['5200:80'], labels=["service"])
+k8s_resource('booking-db', port_forwards=['5436:5432'], labels=["service"])
+k8s_resource('ticketservice', port_forwards=['8080:8080'], labels=["service"])
+k8s_resource('ticket-db', port_forwards=['5437:5432'], labels=["service"])
+k8s_resource('redis', port_forwards=['6379:6379'], labels=["service"])
+k8s_resource('authentication-service', port_forwards=['4040:4040'], labels=["service"])
+k8s_resource('auth-db', port_forwards=['5438:5432'], labels=["service"])
+k8s_resource('events-service', port_forwards=['4041:4041'], labels=["service"])
+k8s_resource('events-db', port_forwards=['5439:5432'], labels=["service"])
+k8s_resource('notification-service', port_forwards=['4042:4042'], labels=["service"])
+k8s_resource('notification-db', port_forwards=['5440:5432'], labels=["service"])
+k8s_resource('payment-service', port_forwards=['8090:8090'], labels=["service"])
+k8s_resource('gateway-api', port_forwards=['5266:80'], labels=["service"])
 k8s_resource('prometheus', 
     port_forwards=['9090:9090'], 
     labels=["monitoring"],
