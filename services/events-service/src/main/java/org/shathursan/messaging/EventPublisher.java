@@ -12,6 +12,6 @@ public class EventPublisher {
   private final RabbitTemplate rabbitTemplate;
 
   public void publishEventCreated(EventCreated payload) {
-    rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE, RabbitConfig.RK_CREATED, payload);
+    rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE, RabbitConfig.RK_EVENT_CREATED, payload);
   }
-}e
+}

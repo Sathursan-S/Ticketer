@@ -1,8 +1,8 @@
 using MassTransit;
 using Microsoft.Extensions.Logging;
 using TicketService.Contracts.Messages;
-using TicketService.Domain.Dtos;    // adjust to your DTO namespace
-using TicketService.Application;    // where ITicketService lives
+using TicketService.Application;
+using TicketService.Application.Services;
 
 namespace TicketService.Consumers;
 
@@ -24,7 +24,7 @@ public class EventCreatedConsumer : IConsumer<EventCreated>
         _logger.LogInformation("EventCreated received: EventId={EventId}, InitialTickets={Qty}",
             msg.EventId, msg.InitialTickets);
 
-        var request = new CreateTicketRequest
+        var request = new DTOs.CreateTicketRequest
         {
             EventId  = msg.EventId,
             Quantity = msg.InitialTickets
@@ -49,5 +49,10 @@ public class EventCreatedConsumer : IConsumer<EventCreated>
         {
             _logger.LogError(ex, "Bulk ticket creation failed for EventId={EventId}", msg.EventId);
         }
+    }
+
+    Task IConsumer<EventCreated>.Consume(ConsumeContext<EventCreated> context)
+    {
+        throw new NotImplementedException();
     }
 }

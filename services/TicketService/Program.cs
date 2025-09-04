@@ -19,12 +19,12 @@ using TicketService.Repository;
 using MassTransit;
 using TicketService.Consumers;
 using TicketService.Application;
+using TicketService.Contracts.Messages;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddScoped<ITicketService, TicketServiceImpl>();
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<EventCreatedConsumer, EventCreatedConsumerDefinition>();
+    x.AddConsumer<EventCreatedConsumer>();
 
     x.SetKebabCaseEndpointNameFormatter();
 
