@@ -16,11 +16,40 @@ using TicketService.Infrastructure.Messaging;
 using TicketService.Mappers;
 using TicketService.Repositoy;
 using TicketService.Repository;
+using MassTransit;
+using TicketService.Consumers;
+using TicketService.Application;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<ITicketService, TicketServiceImpl>();
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<EventCreatedConsumer, EventCreatedConsumerDefinition>();
+
+    x.SetKebabCaseEndpointNameFormatter();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var host = builder.Configuration["RabbitMq:Host"] ?? "rabbitmq";
+        var user = builder.Configuration["RabbitMq:Username"] ?? "guest";
+        var pass = builder.Configuration["RabbitMq:Password"] ?? "guest";
+        var vhost = builder.Configuration["RabbitMq:VirtualHost"] ?? "/";
+
+        cfg.Host(host, vhost, h =>
+        {
+            h.Username(user);
+            h.Password(pass);
+        });
+         cfg.ClearSerialization();
+        cfg.UseRawJsonSerializer();
+        cfg.UseRawJsonDeserializer();
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // Add services to the container.
-builder.Services.AddControllers()
+    builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         // Configure JSON serialization
