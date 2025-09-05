@@ -119,21 +119,30 @@ builder.Services.AddDbContext<TicketDbContext>(options =>
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     var databaseProvider = builder.Configuration["DatabaseProvider"];
 
-    if (string.Equals(databaseProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), npgsqlOptions =>
     {
-        options.UseSqlite(connectionString);
-    }
-    else
-    {
-        // Default to PostgreSQL for production
-        options.UseNpgsql(connectionString, npgsqlOptions =>
-        {
-            npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorCodesToAdd: null);
-        });
-    }
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorCodesToAdd: null);
+        npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "ticket_service");
+    });
+
+    // if (string.Equals(databaseProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+    // {
+    //     options.UseSqlite(connectionString);
+    // }
+    // else
+    // {
+    //     // Default to PostgreSQL for production
+    //     options.UseNpgsql(connectionString, npgsqlOptions =>
+    //     {
+    //         npgsqlOptions.EnableRetryOnFailure(
+    //             maxRetryCount: 3,
+    //             maxRetryDelay: TimeSpan.FromSeconds(30),
+    //             errorCodesToAdd: null);
+    //     });
+    // }
 });
 
 // Configure AutoMapper
@@ -256,7 +265,6 @@ builder.Services.AddOpenTelemetry()
         .AddRedisInstrumentation()
         .AddSource("MassTransit")
         .AddSource("TicketService.*")
-        .AddConsoleExporter()
         .AddJaegerExporter(options =>
         {
             var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
@@ -296,12 +304,47 @@ builder.Services.AddOpenTelemetry()
         })
         .AddPrometheusExporter());
 
-// Configure logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+// // Configure logging
+// builder.Logging.ClearProviders();
+// builder.Logging.AddConsole();
+// builder.Logging.AddDebug();
 
 var app = builder.Build();
+
+// Initialize the database asynchronously
+_ = Task.Run(async () =>
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<TicketDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    const int maxRetries = 10;
+    const int delaySeconds = 5;
+    
+    for (int i = 0; i < maxRetries; i++)
+    {
+        try
+        {
+            logger.LogInformation("Attempting to initialize database (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
+            await context.Database.EnsureCreatedAsync();
+            logger.LogInformation("Database initialization completed successfully.");
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Database initialization failed (attempt {Attempt}/{MaxRetries}): {Message}", i + 1, maxRetries, ex.Message);
+            
+            if (i < maxRetries - 1)
+            {
+                logger.LogInformation("Retrying database initialization in {DelaySeconds} seconds...", delaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+            }
+        }
+    }
+    
+    logger.LogError("Failed to initialize database after {MaxRetries} attempts. Application may not function correctly.", maxRetries);
+});
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

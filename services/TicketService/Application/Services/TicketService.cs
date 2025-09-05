@@ -377,7 +377,7 @@ public class TicketService : ITicketService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while creating bulk tickets for event ID: {EventId}", request.EventId);
-            throw new ServiceException($"Failed to create bulk tickets for event ID: {request.EventId}", ex);
+            throw new ServiceException($"Failed to create bulk tickets for event ID: {request.EventId} {ex}", ex);
         }
     }
 }

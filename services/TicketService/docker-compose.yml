@@ -7,8 +7,7 @@ services:
       context: ../../
       dockerfile: ./services/TicketService/Dockerfile
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "8080:5300"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=TicketServiceDb;Username=postgres;Password=postgres;
@@ -25,7 +24,7 @@ services:
       - ticket-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:80/health/live"]
+      test: ["CMD", "curl", "--fail", "http://localhost:5300/health/live"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -80,6 +79,24 @@ services:
       - ticket-network
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticket-network
+
 networks:
   ticket-network:
     driver: bridge
@@ -87,3 +104,4 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  rabbitmq-data:

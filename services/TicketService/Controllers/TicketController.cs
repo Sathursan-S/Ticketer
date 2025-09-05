@@ -218,7 +218,7 @@ public class TicketController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while creating bulk tickets for event ID: {EventId}", request.EventId);
-            return StatusCode(StatusCodes.Status500InternalServerError, ApiResponses.InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { Message = ApiResponses.InternalServerError, Exception = ex.Message });
         }
     }
 
