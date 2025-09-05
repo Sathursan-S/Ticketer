@@ -1,6 +1,28 @@
 # Docker Compose file for the entire Ticketer application
 
 services:
+  # -------------------- API Gateway --------------------
+  gateway:
+    image: ${DOCKER_REGISTRY-}gateway-api
+    build:
+      context: .
+      dockerfile: ./services/Gateway.Api/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+    depends_on:
+      - auth-service
+      - events-service
+      - notification-service
+      - ticketservice
+      - bookingservice
+      - paymentservice
+    networks:
+      - ticketer-network
+    restart: unless-stopped
+
   # -------------------- Authentication Service --------------------
   auth-service:
     build:
