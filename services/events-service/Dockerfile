@@ -3,7 +3,7 @@
 ################################################################################
 
 # Create a stage for resolving and downloading dependencies.
-FROM maven:3.9-eclipse-temurin-21 AS deps
+FROM maven:3.9-eclipse-temurin-17 AS deps
 
 WORKDIR /build
 
@@ -40,7 +40,7 @@ RUN java -Djarmode=layertools -jar target/app.jar extract --destination target/e
 ################################################################################
 
 # Create a new stage for running the application
-FROM eclipse-temurin:21-jre-jammy AS final
+FROM eclipse-temurin:17-jre-jammy AS final
 
 # Create a non-privileged user for the app
 ARG UID=10001
