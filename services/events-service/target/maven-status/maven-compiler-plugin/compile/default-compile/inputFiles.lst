@@ -26,4 +26,5 @@
 /home/runner/work/Ticketer/Ticketer/services/events-service/src/main/java/org/shathursan/security/SecurityConfig.java
 /home/runner/work/Ticketer/Ticketer/services/events-service/src/main/java/org/shathursan/service/EventService.java
 /home/runner/work/Ticketer/Ticketer/services/events-service/src/main/java/org/shathursan/service/EventServiceImpl.java
+/home/runner/work/Ticketer/Ticketer/services/events-service/src/main/java/org/shathursan/service/ExportService.java
 /home/runner/work/Ticketer/Ticketer/services/events-service/src/main/java/org/shathursan/util/ApiEndpoints.java

@@ -5,16 +5,22 @@ import lombok.RequiredArgsConstructor;
 import org.shathursan.dto.response.ContentResponse;
 import org.shathursan.dto.response.EventResponse;
 import org.shathursan.service.EventService;
+import org.shathursan.service.ExportService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -22,6 +28,7 @@ import java.util.Map;
 public class AdminController {
 
     private final EventService eventService;
+    private final ExportService exportService;
 
     /**
      * Get all events with statistics (admin only)
@@ -131,50 +138,87 @@ public class AdminController {
     }
 
     /**
-     * Export booking data (placeholder for CSV/Excel/PDF export)
+     * Export booking/event data in various formats (CSV, Excel, PDF)
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/bookings/export")
-    public ResponseEntity<ContentResponse<Map<String, String>>> exportBookingData(
+    @GetMapping("/events/export")
+    public ResponseEntity<byte[]> exportEventData(
             @RequestParam(defaultValue = "csv") String format,
             @RequestParam(required = false) Long eventId) {
         
         try {
-            // TODO: Implement actual export functionality
-            Map<String, String> exportInfo = new HashMap<>();
-            exportInfo.put("format", format);
-            exportInfo.put("status", "prepared");
-            exportInfo.put("message", "Export functionality is being prepared. Implementation pending for " + format.toUpperCase() + " format.");
+            List<EventResponse> events;
+            String filename;
             
             if (eventId != null) {
-                exportInfo.put("eventId", eventId.toString());
-                exportInfo.put("scope", "event-specific");
+                EventResponse event = eventService.getEventWithAllStatusById(eventId);
+                events = List.of(event);
+                filename = "event_" + eventId + "_report_" + 
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             } else {
-                exportInfo.put("scope", "all-bookings");
+                events = eventService.listAll();
+                filename = "all_events_report_" + 
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             }
             
-            ContentResponse<Map<String, String>> response = new ContentResponse<>(
-                "Export Data",
-                exportInfo,
-                "success",
-                "200",
-                "No Need",
-                "Export request processed successfully."
-            );
+            // Convert events to exportable format
+            List<Map<String, Object>> exportData = events.stream()
+                .map(this::convertEventToExportMap)
+                .collect(Collectors.toList());
             
-            return ResponseEntity.ok(response);
+            String[] headers = {
+                "Event ID", "Event Name", "Category", "Status", "Start Date", 
+                "Ticket Price", "Capacity", "Sold", "Available", "Revenue",
+                "Venue Name", "City", "Country"
+            };
             
+            byte[] data;
+            switch (format.toLowerCase()) {
+                case "excel":
+                case "xlsx":
+                    data = exportService.exportToExcel(exportData, headers);
+                    break;
+                case "pdf":
+                    data = exportService.exportToPDF(exportData, headers);
+                    break;
+                case "csv":
+                default:
+                    data = exportService.exportToCSV(exportData, headers);
+                    break;
+            }
+            
+            String mimeType = exportService.getMimeType(format);
+            String fileExtension = exportService.getFileExtension(format);
+            
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, 
+                    "attachment; filename=\"" + filename + fileExtension + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, mimeType)
+                .body(data);
+            
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
         } catch (Exception e) {
-            ContentResponse<Map<String, String>> errorResponse = new ContentResponse<>(
-                "Export Data",
-                null,
-                "error",
-                "500",
-                "No Need",
-                "Export failed: " + e.getMessage()
-            );
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.badRequest().build();
         }
+    }
+    
+    private Map<String, Object> convertEventToExportMap(EventResponse event) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("Event ID", event.getId());
+        map.put("Event Name", event.getEventName());
+        map.put("Category", event.getCategory());
+        map.put("Status", event.getStatus());
+        map.put("Start Date", event.getStartAt());
+        map.put("Ticket Price", event.getTicketPrice());
+        map.put("Capacity", event.getTicketCapacity());
+        map.put("Sold", event.getTicketsSold());
+        map.put("Available", event.getTicketsAvailable());
+        map.put("Revenue", event.getTicketsSold() * event.getTicketPrice());
+        map.put("Venue Name", event.getVenueDto() != null ? event.getVenueDto().getName() : "");
+        map.put("City", event.getVenueDto() != null ? event.getVenueDto().getCity() : "");
+        map.put("Country", event.getVenueDto() != null ? event.getVenueDto().getCountry() : "");
+        return map;
     }
 
     /**
