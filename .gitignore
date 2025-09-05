@@ -21,6 +21,11 @@ build/
 out/
 *.tsbuildinfo
 
+# .NET build output
+bin/
+obj/
+target/
+
 # IDE/Editor specific files
 .vscode/
 .idea/
