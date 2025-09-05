@@ -24,6 +24,15 @@ spec:
               value: "Development"
             - name: ASPNETCORE_URLS
               value: "http://+:80"
+            # OpenTelemetry configuration
+            - name: OpenTelemetry__ServiceName
+              value: "Gateway.Api"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Jaeger__Endpoint
+              value: "jaeger:6831"
+            - name: OpenTelemetry__Otlp__Endpoint
+              value: "http://otel-collector:4317"
           resources:
             requests:
               cpu: "100m"

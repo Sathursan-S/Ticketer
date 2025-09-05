@@ -28,6 +28,15 @@ spec:
               value: "postgres"
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
+            # OpenTelemetry configuration
+            - name: OTLP_TRACING_ENDPOINT
+              value: "http://otel-collector:4318/v1/traces"
+            - name: OTEL_SERVICE_NAME
+              value: "authentication-service"
+            - name: OTEL_SERVICE_VERSION
+              value: "1.0.0"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              value: "1.0"
           resources:
             requests:
               cpu: "100m"

@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the project files first for layer caching
@@ -23,7 +23,7 @@ WORKDIR "/src/services/PaymentService"
 RUN dotnet publish "PaymentService.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 3: Create the runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 EXPOSE 8090
 EXPOSE 443

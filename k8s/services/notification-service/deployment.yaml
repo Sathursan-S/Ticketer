@@ -45,6 +45,15 @@ spec:
                 secretKeyRef:
                   name: rabbitmq-secrets
                   key: rabbitmq-password
+            # OpenTelemetry configuration
+            - name: OTLP_TRACING_ENDPOINT
+              value: "http://otel-collector:4318/v1/traces"
+            - name: OTEL_SERVICE_NAME
+              value: "notification-service"
+            - name: OTEL_SERVICE_VERSION
+              value: "1.0.0"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              value: "1.0"
           resources:
             requests:
               cpu: "100m"

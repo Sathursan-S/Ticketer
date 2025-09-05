@@ -150,6 +150,8 @@ builder.Services.AddOpenTelemetry()
         })
         .AddSource("MassTransit")
         .AddSource("BookingService.*")
+        .AddSource("Ticketer.Saga")
+        .AddSource("Ticketer.Booking")
         .AddConsoleExporter()
         .AddJaegerExporter(options =>
         {
@@ -178,6 +180,8 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddMeter("BookingService.*")
+        .AddMeter("Ticketer.Saga.Metrics")
+        .AddMeter("Ticketer.Business.Metrics")
         .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
