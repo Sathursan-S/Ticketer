@@ -28,6 +28,23 @@ using System.Diagnostics.Metrics;
 
 
 var builder = WebApplication.CreateBuilder(args);
+// Add RabbitMQ settings
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection("RabbitMq"));
+
+// Register RabbitMQ health check service
+builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
+{
+    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>()
+        ?? new RabbitMqSettings();
+    var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
+    return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
+});
+
+// Register RabbitMQ health check
+builder.Services.AddHealthChecks()
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<EventCreatedConsumer>();

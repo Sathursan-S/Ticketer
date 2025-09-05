@@ -34,9 +34,11 @@ public record BookingConfirmedEvent(
 /// </summary>
 /// <param name="BookingId">The unique identifier of the booking.</param>
 /// <param name="Reason">The reason for the booking failure.</param>
-public record BookingFailedEvent(
-    Guid BookingId,
-    string Reason);
+public record BookingFailedEvent
+{
+    public Guid BookingId { get; init; }
+    public string Reason { get; init; }
+};
 
 
 /// <summary>

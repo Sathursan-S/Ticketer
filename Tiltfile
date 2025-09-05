@@ -123,21 +123,21 @@ docker_build('ticketer/ticket-service', '.', dockerfile='./services/TicketServic
         sync('./services/TicketService/', '/app'),
         run('dotnet build', trigger=['**/*.cs', '**/*.csproj']),
     ])
-# docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile',
-#     live_update=[
-#         sync('./services/authentication-service/', '/app'),
-#         run('mvn compile', trigger=['**/*.java', 'pom.xml']),
-#     ])
-# docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile',
-#     live_update=[
-#         sync('./services/events-service/', '/app'),
-#         run('mvn compile', trigger=['**/*.java', 'pom.xml']),
-#     ])
-# docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile',
-#     live_update=[
-#         sync('./services/notification-service/', '/app'),
-#         run('mvn compile', trigger=['**/*.java', 'pom.xml']),
-#     ])
+docker_build('ticketer/authentication-service', './services/authentication-service', dockerfile='./services/authentication-service/Dockerfile',
+    live_update=[
+        sync('./services/authentication-service/', '/app'),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
+    ])
+docker_build('ticketer/events-service', './services/events-service', dockerfile='./services/events-service/Dockerfile',
+    live_update=[
+        sync('./services/events-service/', '/app'),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
+    ])
+docker_build('ticketer/notification-service', './services/notification-service', dockerfile='./services/notification-service/Dockerfile',
+    live_update=[
+        sync('./services/notification-service/', '/app'),
+        run('mvn compile', trigger=['**/*.java', 'pom.xml']),
+    ])
 docker_build('ticketer/payment-service', '.', dockerfile='./services/PaymentService/Dockerfile',
     live_update=[
         sync('./services/PaymentService/', '/app'),
@@ -154,9 +154,9 @@ docker_build('ticketer/gateway-api', '.', dockerfile='./services/Gateway.Api/Doc
 # Database resources (no dependencies)
 k8s_resource('booking-db', port_forwards=['5436:5432'], labels=["database"])
 k8s_resource('ticket-db', port_forwards=['5437:5432'], labels=["database"])
-# k8s_resource('auth-db', port_forwards=['5438:5432'], labels=["database"])
-# k8s_resource('events-db', port_forwards=['5439:5432'], labels=["database"])
-# k8s_resource('notification-db', port_forwards=['5440:5432'], labels=["database"])
+k8s_resource('auth-db', port_forwards=['5438:5432'], labels=["database"])
+k8s_resource('events-db', port_forwards=['5439:5432'], labels=["database"])
+k8s_resource('notification-db', port_forwards=['5440:5432'], labels=["database"])
 
 # Infrastructure resources
 k8s_resource('rabbitmq', port_forwards=['15672:15672', '5672:5672'], labels=["infrastructure"])
@@ -218,21 +218,21 @@ k8s_resource('jaeger',
 # =================================================================================
 
 # Service resources with dependencies
-# k8s_resource('authentication-service', 
-#     port_forwards=['4040:4040'], 
-#     labels=["service"],
-#     resource_deps=['auth-db', 'otel-collector', 'jaeger']
-# )
-# k8s_resource('events-service', 
-#     port_forwards=['4041:4041'], 
-#     labels=["service"],
-#     resource_deps=['events-db', 'otel-collector', 'jaeger']
-# )
-# k8s_resource('notification-service', 
-#     port_forwards=['4042:4042'], 
-#     labels=["service"],
-#     resource_deps=['notification-db', 'rabbitmq', 'otel-collector', 'jaeger']
-# )
+k8s_resource('authentication-service', 
+    port_forwards=['4040:4040'], 
+    labels=["service"],
+    resource_deps=['auth-db', 'otel-collector', 'jaeger']
+)
+k8s_resource('events-service', 
+    port_forwards=['4041:4041'], 
+    labels=["service"],
+    resource_deps=['events-db', 'otel-collector', 'jaeger']
+)
+k8s_resource('notification-service', 
+    port_forwards=['4042:4042'], 
+    labels=["service"],
+    resource_deps=['notification-db', 'rabbitmq', 'otel-collector', 'jaeger']
+)
 k8s_resource('ticketservice', 
     port_forwards=['5300:5300'], 
     labels=["service"],
@@ -254,9 +254,9 @@ k8s_resource('gateway-api',
     port_forwards=['5266:80'], 
     labels=["gateway"],
     resource_deps=[
-        # 'authentication-service',
-        # 'events-service', 
-        # 'notification-service',
+        'authentication-service',
+        'events-service', 
+        'notification-service',
         'ticketservice',
         'bookingservice',
         'payment-service',
@@ -318,9 +318,9 @@ local_resource('wait-for-services',
     ''',
     labels=["health-check"],
     deps=[
-        # 'authentication-service',
-        # 'events-service', 
-        # 'notification-service',
+        'authentication-service',
+        'events-service', 
+        'notification-service',
         'ticketservice',
         'bookingservice',
         'payment-service'
