@@ -25,10 +25,10 @@ public class EventController {
   @GetMapping
   public ResponseEntity<Page<EventResponse>> list(
       @RequestParam(required = false) String category,
-      @RequestParam(required = false) String from,
-      @RequestParam(required = false) String to,
+      @RequestParam(required = false) String location,
+      @RequestParam(required = false) String date,
       @RequestParam(required = false) String q) {
-    return ResponseEntity.ok(eventService.listPublic(category, from, to, q, Pageable.unpaged()));
+    return ResponseEntity.ok(eventService.listPublic(category, location, date, q, Pageable.unpaged()));
   }
 
   @GetMapping(ApiEndpoints.EVENT_BY_ID)

@@ -151,7 +151,39 @@ public class EventServiceImpl implements EventService {
           .toList();
       events = new org.springframework.data.domain.PageImpl<>(filteredEvents, pageable, allEvents.getTotalElements());
     }
-    return events.map(this::toResponse);
+    
+    // Apply additional filtering based on location and search query
+    List<Event> eventList = events.getContent();
+    
+    // Filter by location if provided
+    if (location != null && !location.isBlank()) {
+      eventList = eventList.stream()
+          .filter(event -> event.getVenue() != null && 
+              (containsIgnoreCase(event.getVenue().getCity(), location) ||
+               containsIgnoreCase(event.getVenue().getCountry(), location) ||
+               containsIgnoreCase(event.getVenue().getName(), location)))
+          .toList();
+    }
+    
+    // Filter by search query if provided
+    if (q != null && !q.isBlank()) {
+      eventList = eventList.stream()
+          .filter(event -> containsIgnoreCase(event.getEventName(), q) ||
+              containsIgnoreCase(event.getDescription(), q) ||
+              (event.getVenue() != null && containsIgnoreCase(event.getVenue().getName(), q)))
+          .toList();
+    }
+    
+    return new org.springframework.data.domain.PageImpl<>(
+        eventList.stream().map(this::toResponse).toList(), 
+        pageable, 
+        eventList.size()
+    );
+  }
+  
+  private boolean containsIgnoreCase(String source, String target) {
+    return source != null && target != null && 
+        source.toLowerCase().contains(target.toLowerCase());
   }
 
   @Override

@@ -1,0 +1,5 @@
+org/shathursan/config/RabbitConfig.class
+org/shathursan/controller/AdminController.class
+org/shathursan/messaging/EventPublisher.class
+org/shathursan/contracts/EventCreated.class
+org/shathursan/contracts/EventCreated$EventCreatedBuilder.class
