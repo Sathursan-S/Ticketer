@@ -236,7 +236,7 @@ k8s_resource('notification-service',
 k8s_resource('ticketservice', 
     port_forwards=['5300:5300'], 
     labels=["service"],
-    resource_deps=['ticket-db', 'redis', 'otel-collector', 'jaeger']
+    resource_deps=['ticket-db', 'redis', 'otel-collector', 'jaeger', 'rabbitmq']
 )
 k8s_resource('bookingservice', 
     port_forwards=['5200:80'], 
@@ -246,7 +246,7 @@ k8s_resource('bookingservice',
 k8s_resource('payment-service', 
     port_forwards=['8090:8090'], 
     labels=["service"],
-    resource_deps=['otel-collector', 'jaeger']
+    resource_deps=['otel-collector', 'jaeger', 'rabbitmq']
 )
 
 # Gateway API depends on all services

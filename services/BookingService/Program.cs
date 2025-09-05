@@ -66,12 +66,12 @@ builder.Services.AddMassTransit(x =>
 
         // Resilience
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        cfg.UseCircuitBreaker(cb =>
-        {
-            cb.TripThreshold = (int)0.15;
-            cb.ActiveThreshold = 10;
-            cb.ResetInterval = TimeSpan.FromMinutes(1);
-        });
+        // cfg.UseCircuitBreaker(cb =>
+        // {
+        //     cb.TripThreshold = (int)0.15;
+        //     cb.ActiveThreshold = 10;
+        //     cb.ResetInterval = TimeSpan.FromMinutes(1);
+        // });
 
         cfg.ConfigureEndpoints(context);
     });
@@ -99,9 +99,9 @@ builder.Services.AddCors(options =>
     {
         var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
         policy.WithOrigins(corsOrigins ?? Array.Empty<string>())
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -267,23 +267,25 @@ _ = Task.Run(async () =>
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BookingSagaDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
+
     const int maxRetries = 10;
     const int delaySeconds = 5;
-    
+
     for (int i = 0; i < maxRetries; i++)
     {
         try
         {
-            logger.LogInformation("Attempting to initialize database (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
+            logger.LogInformation("Attempting to initialize database (attempt {Attempt}/{MaxRetries})...", i + 1,
+                maxRetries);
             await context.Database.EnsureCreatedAsync();
             logger.LogInformation("Database initialization completed successfully.");
             return;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Database initialization failed (attempt {Attempt}/{MaxRetries}): {Message}", i + 1, maxRetries, ex.Message);
-            
+            logger.LogWarning(ex, "Database initialization failed (attempt {Attempt}/{MaxRetries}): {Message}", i + 1,
+                maxRetries, ex.Message);
+
             if (i < maxRetries - 1)
             {
                 logger.LogInformation("Retrying database initialization in {DelaySeconds} seconds...", delaySeconds);
@@ -291,8 +293,10 @@ _ = Task.Run(async () =>
             }
         }
     }
-    
-    logger.LogError("Failed to initialize database after {MaxRetries} attempts. Application may not function correctly.", maxRetries);
+
+    logger.LogError(
+        "Failed to initialize database after {MaxRetries} attempts. Application may not function correctly.",
+        maxRetries);
 });
 
 // -------------------- Health Endpoints --------------------

@@ -32,18 +32,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<RabbitMqSettings>(
     builder.Configuration.GetSection("RabbitMq"));
 
-// Register RabbitMQ health check service
-builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
-{
-    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>()
-        ?? new RabbitMqSettings();
-    var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
-    return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
-});
+// Remove these two lines. MassTransit handles this for you.
+// builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
+// {
+//     var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>()
+//         ?? new RabbitMqSettings();
+//     var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
+//     return new RabbitMqHealthCheck(logger, rabbitMqSettings.Host, rabbitMqSettings.Port);
+// });
 
-// Register RabbitMQ health check
-builder.Services.AddHealthChecks()
-    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
+// Remove this line. MassTransit already registers a health check named "rabbitmq".
+// builder.Services.AddHealthChecks()
+//     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
 
 builder.Services.AddMassTransit(x =>
 {
@@ -228,6 +228,7 @@ builder.Services.AddSingleton<RabbitMqHealthCheck>(serviceProvider =>
 // Register RabbitMQ health check
 builder.Services.AddHealthChecks()
     .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "rabbitmq", "messaging", "ready" });
+
 
 // Add application services
 builder.Services.AddScoped<ITicketRepository, TicketRepository>();

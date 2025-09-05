@@ -38,21 +38,24 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddMassTransit(config =>
 {
     config.AddConsumer<ProcessPaymentConsumer>();
+    config.SetKebabCaseEndpointNameFormatter();
+
     config.UsingRabbitMq((context, cfg) =>
     {
-        var rabbitMqSettings = context.GetRequiredService<IOptions<RabbitMqSettings>>().Value;
+        var host = builder.Configuration["RabbitMq:Host"] ?? "rabbitmq";
+        var user = builder.Configuration["RabbitMq:Username"] ?? "guest";
+        var pass = builder.Configuration["RabbitMq:Password"] ?? "guest";
+        var vhost = builder.Configuration["RabbitMq:VirtualHost"] ?? "/";
 
-        cfg.Host(rabbitMqSettings.Host, h =>
+        cfg.Host(host, vhost, h =>
         {
-            h.Username(rabbitMqSettings.Username);
-            h.Password(rabbitMqSettings.Password);
-            h.UseCluster(c =>
-            {
-                c.Node(rabbitMqSettings.Host);
-            });
+            h.Username(user);
+            h.Password(pass);
         });
+        cfg.ClearSerialization();
+        cfg.UseRawJsonSerializer();
+        cfg.UseRawJsonDeserializer();
 
-        // Configure endpoints
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -115,10 +118,7 @@ app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Payment Service API V1");
-});
+app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Payment Service API V1"); });
 
 // Map health check endpoints
 app.MapHealthChecks("/health/live");
