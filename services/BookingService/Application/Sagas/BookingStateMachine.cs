@@ -194,7 +194,29 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
             When(BookingFailedEvent)
             .Then(context => _logger.LogWarning("Booking failed for BookingId: {BookingId}", context.Saga.BookingId))
             .TransitionTo(BookingFailed)
-            .Finalize()
+            .Finalize(),
+
+            // Add handler for duplicate/delayed PaymentProcessedEvent
+            When(PaymentProcessedEvent)
+                .Then(context => _logger.LogInformation("Received duplicate or delayed PaymentProcessedEvent for BookingId: {BookingId} in ConfirmingTickets state. Ignoring as payment is already processed.", context.Saga.BookingId)),
+
+            // Add new handler for PaymentFailedEvent to handle delayed messages
+            When(PaymentFailedEvent)
+                .Then(context => _logger.LogWarning("Received unexpected PaymentFailedEvent for BookingId: {BookingId} in ConfirmingTickets state. Handling as a failure.", context.Saga.BookingId))
+                .PublishAsync(context => context.Init<ReleaseTickets>(new
+                {
+                    BookingId = context.Saga.BookingId,
+                    EventId = context.Saga.EventId,
+                    TicketIds = context.Saga.Tickets,
+                    Reason = "Payment failed after tickets were reserved."
+                }))
+                .PublishAsync(context => context.Init<BookingFailedEvent>(new
+                {
+                    BookingId = context.Saga.BookingId,
+                    Reason = "Payment failed after tickets were reserved."
+                }))
+                .TransitionTo(BookingFailed)
+                .Finalize()
         );
 
         SetCompletedWhenFinalized();

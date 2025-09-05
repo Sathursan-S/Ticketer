@@ -49,6 +49,8 @@ builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<EventCreatedConsumer>();
     x.AddConsumer<HoldTicketsConsumer>();
+    x.AddConsumer<ReleaseTicketsConsumer>();
+    x.AddConsumer<ReserveTicketsConsumer>();
 
     x.SetKebabCaseEndpointNameFormatter();
 
@@ -240,62 +242,23 @@ builder.Services.AddHealthChecks(builder.Configuration);
 // Configure OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService(serviceName: "TicketService")
+        .AddService("TicketService")
         .AddAttributes(new Dictionary<string, object>
         {
             ["service.instance.id"] = Environment.MachineName,
             ["deployment.environment"] = builder.Environment.EnvironmentName
         }))
     .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation(options =>
-        {
-            options.RecordException = true;
-            options.EnrichWithHttpRequest = (activity, httpRequest) =>
-            {
-                activity.SetTag("http.request_id", httpRequest.Headers["X-Request-ID"].FirstOrDefault());
-                activity.SetTag("http.user_agent", httpRequest.Headers["User-Agent"].FirstOrDefault());
-            };
-            options.EnrichWithHttpResponse = (activity, httpResponse) =>
-            {
-                activity.SetTag("http.status_code", httpResponse.StatusCode);
-            };
-        })
-        .AddHttpClientInstrumentation(options =>
-        {
-            options.EnrichWithHttpRequestMessage = (activity, httpRequest) =>
-            {
-                activity.SetTag("http.request_id", httpRequest.Headers.GetValues("X-Request-ID").FirstOrDefault());
-            };
-            options.EnrichWithHttpResponseMessage = (activity, httpResponse) =>
-            {
-                activity.SetTag("http.status_code", httpResponse.StatusCode);
-            };
-        })
-        .AddEntityFrameworkCoreInstrumentation(options =>
-        {
-            options.SetDbStatementForText = true;
-            options.EnrichWithIDbCommand = (activity, command) =>
-            {
-                activity.SetTag("db.connection_string", command.Connection?.ConnectionString);
-                activity.SetTag("db.command_type", command.CommandType.ToString());
-            };
-        })
+        .AddAspNetCoreInstrumentation(options => options.RecordException = true)
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
         .AddRedisInstrumentation()
-        .AddSource("MassTransit")
-        .AddSource("TicketService.*")
+        .AddSource("MassTransit", "TicketService.*")
         .AddJaegerExporter(options =>
         {
-            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
-            if (!string.IsNullOrEmpty(jaegerEndpoint))
-            {
-                options.AgentHost = jaegerEndpoint.Split(':')[0];
-                options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
-            }
-            else
-            {
-                options.AgentHost = "jaeger";
-                options.AgentPort = 6831;
-            }
+            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"] ?? "jaeger:6831";
+            options.AgentHost = jaegerEndpoint.Split(':')[0];
+            options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
         })
         .AddOtlpExporter(options =>
         {
@@ -310,7 +273,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddMeter("TicketService.*")
-        .AddConsoleExporter()
+        .AddPrometheusExporter()
         .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
@@ -320,7 +283,8 @@ builder.Services.AddOpenTelemetry()
                 options.Protocol = OtlpExportProtocol.Grpc;
             }
         })
-        .AddPrometheusExporter());
+        // 👇 Filter out the noisy Kestrel metric
+        .AddView("kestrel.keep_alive_timeout", new MetricStreamConfiguration()));
 
 // // Configure logging
 // builder.Logging.ClearProviders();

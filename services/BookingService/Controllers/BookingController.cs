@@ -62,35 +62,6 @@ public class BookingController : ControllerBase
         }
     }
     
-    [HttpPost("{bookingId:guid}/payment/success")]
-    public async Task<IActionResult> PaymentSuccess(Guid bookingId, [FromBody] PaymentSuccessRequest body)
-    {
-        var msg = new PaymentSucceeded(
-            BookingId: bookingId,
-            CustomerId: body.CustomerId,
-            PaymentIntentId: body.PaymentIntentId ?? Guid.NewGuid().ToString(),
-            Amount: body.Amount,
-            Currency: body.Currency ?? "USD",
-            PaidAtUtc: DateTime.UtcNow);
-
-        await _paymentPublisher.PublishSuccessAsync(msg);
-        _logger.LogInformation("Published payment.succeeded for {BookingId}", bookingId);
-        return Accepted(new { published = "payment.succeeded", bookingId });
-    }
-
-    [HttpPost("{bookingId:guid}/payment/fail")]
-    public async Task<IActionResult> PaymentFail(Guid bookingId, [FromBody] PaymentFailRequest body)
-    {
-        var msg = new PaymentFailed(
-            BookingId: bookingId,
-            CustomerId: body.CustomerId,
-            Reason: body.Reason ?? "Payment gateway declined",
-            FailedAtUtc: DateTime.UtcNow);
-
-        await _paymentPublisher.PublishFailureAsync(msg);
-        _logger.LogInformation("Published payment.failed for {BookingId}", bookingId);
-        return Accepted(new { published = "payment.failed", bookingId });
-    }
 }
 
 public record PaymentSuccessRequest(Guid CustomerId, decimal Amount, string? Currency, string? PaymentIntentId);

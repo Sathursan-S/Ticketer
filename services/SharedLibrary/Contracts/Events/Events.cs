@@ -24,7 +24,7 @@ public record BookingCreatedEvent
 public record BookingConfirmedEvent(
     Guid BookingId,
     string CustomerId,
-    int EventId,
+    long EventId,
     int NumberOfTickets,
     DateTime CreatedAt,
     DateTime? BookingConfirmedAt);
@@ -38,6 +38,7 @@ public record BookingFailedEvent
 {
     public Guid BookingId { get; init; }
     public string Reason { get; init; }
+    public long EventId { get; init; }
 };
 
 

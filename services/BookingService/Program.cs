@@ -108,69 +108,30 @@ builder.Services.AddCors(options =>
 // Configure OpenTelemetry
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService(serviceName: "BookingService")
+        .AddService("BookingService")
         .AddAttributes(new Dictionary<string, object>
         {
             ["service.instance.id"] = Environment.MachineName,
             ["deployment.environment"] = builder.Environment.EnvironmentName
         }))
     .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation(options =>
-        {
-            options.RecordException = true;
-            options.EnrichWithHttpRequest = (activity, httpRequest) =>
-            {
-                activity.SetTag("http.request_id", httpRequest.Headers["X-Request-ID"].FirstOrDefault());
-                activity.SetTag("http.user_agent", httpRequest.Headers["User-Agent"].FirstOrDefault());
-            };
-            options.EnrichWithHttpResponse = (activity, httpResponse) =>
-            {
-                activity.SetTag("http.status_code", httpResponse.StatusCode);
-            };
-        })
-        .AddHttpClientInstrumentation(options =>
-        {
-            options.EnrichWithHttpRequestMessage = (activity, httpRequest) =>
-            {
-                activity.SetTag("http.request_id", httpRequest.Headers.GetValues("X-Request-ID").FirstOrDefault());
-            };
-            options.EnrichWithHttpResponseMessage = (activity, httpResponse) =>
-            {
-                activity.SetTag("http.status_code", httpResponse.StatusCode);
-            };
-        })
-        .AddEntityFrameworkCoreInstrumentation(options =>
-        {
-            options.SetDbStatementForText = true;
-            options.EnrichWithIDbCommand = (activity, command) =>
-            {
-                activity.SetTag("db.connection_string", command.Connection?.ConnectionString);
-                activity.SetTag("db.command_type", command.CommandType.ToString());
-            };
-        })
-        .AddSource("MassTransit")
+        .AddAspNetCoreInstrumentation(options => options.RecordException = true)
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
         .AddSource("BookingService.*")
         .AddConsoleExporter()
         .AddJaegerExporter(options =>
         {
-            var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
-            if (!string.IsNullOrEmpty(jaegerEndpoint))
-            {
-                options.AgentHost = jaegerEndpoint.Split(':')[0];
-                options.AgentPort = int.Parse(jaegerEndpoint.Split(':')[1]);
-            }
-            else
-            {
-                options.AgentHost = "jaeger";
-                options.AgentPort = 6831;
-            }
+            var endpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"] ?? "jaeger:6831";
+            options.AgentHost = endpoint.Split(':')[0];
+            options.AgentPort = int.Parse(endpoint.Split(':')[1]);
         })
         .AddOtlpExporter(options =>
         {
-            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
-            if (!string.IsNullOrEmpty(otlpEndpoint))
+            var endpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(endpoint))
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(endpoint);
                 options.Protocol = OtlpExportProtocol.Grpc;
             }
         }))
@@ -179,16 +140,19 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddMeter("BookingService.*")
         .AddConsoleExporter()
+        .AddPrometheusExporter()
         .AddOtlpExporter(options =>
         {
-            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
-            if (!string.IsNullOrEmpty(otlpEndpoint))
+            var endpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+            if (!string.IsNullOrEmpty(endpoint))
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(endpoint);
                 options.Protocol = OtlpExportProtocol.Grpc;
             }
         })
-        .AddPrometheusExporter());
+        // 👇 Drop the noisy Kestrel metric
+        .AddView("kestrel.keep_alive_timeout", new MetricStreamConfiguration()));
+
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>

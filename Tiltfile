@@ -341,7 +341,6 @@ k8s_resource('jaeger',
     port_forwards=['16686:16686', '14268:14268'], 
     labels=["monitoring"],
     links=[
-        link("http://localhost:16686", "Jaeger UI"),
+        link("http://localhost:30686", "Jaeger UI"),
     ]
 )
-

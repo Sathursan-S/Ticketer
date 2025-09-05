@@ -72,13 +72,11 @@ builder.Logging.AddDebug();
 
 // Configure OpenTelemetry
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService(serviceName: "PaymentService"))
+    .ConfigureResource(resource => resource.AddService("PaymentService"))
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddSource("MassTransit")
-        .AddConsoleExporter()
         .AddJaegerExporter(options =>
         {
             var jaegerEndpoint = builder.Configuration["OpenTelemetry:Jaeger:Endpoint"];
@@ -94,19 +92,18 @@ builder.Services.AddOpenTelemetry()
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
         }))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
-        .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
             var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
             if (!string.IsNullOrEmpty(otlpEndpoint))
             {
                 options.Endpoint = new Uri(otlpEndpoint);
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                options.Protocol = OtlpExportProtocol.Grpc;
             }
         })
         .AddPrometheusExporter());

@@ -6,6 +6,8 @@ namespace TicketService.Application.Services;
 public interface ITicketService
 {
     Task<HoldTicketResponse> HoldTicketsAsync(HoldTickets request);
+    Task<bool> ReserveTicketsAsync(ReserveTickets request);
+    Task<bool> ReleaseTicketsAsync(ReleaseTickets request);
     Task<IEnumerable<TicketResponse>> GetAllTicketsAsync();
     Task<TicketResponse?> GetTicketByIdAsync(Guid ticketId);
     Task<IEnumerable<TicketResponse>> GetTicketsByEventIdAsync(long eventId);

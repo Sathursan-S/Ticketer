@@ -38,7 +38,7 @@ data:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [jaeger, logging]
+          exporters: [jaeger, logging, jaeger-ui]
 
         metrics:
           receivers: [otlp]
