@@ -1,8 +1,9 @@
-﻿using MassTransit;
+using MassTransit;
+using SharedLibrary.Tracing;
 
 namespace BookingService.Application.Sagas;
 
-public class BookingState : SagaStateMachineInstance
+public class BookingState : SagaStateMachineInstance, BookingStateMachineInstance
 {
     public Guid CorrelationId { get; set; }
     public string? CurrentState { get; set; }

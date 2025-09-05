@@ -1,7 +1,9 @@
-﻿using MassTransit;
+using MassTransit;
 using SharedLibrary.Contracts.Events;
 using SharedLibrary.Contracts.Messages;
+using SharedLibrary.Tracing;
 using TicketService.Application.Services;
+using System.Diagnostics;
 
 namespace TicketService.Application.Consumers;
 
@@ -18,6 +20,12 @@ public class HoldTicketsConsumer : IConsumer<HoldTickets>
 
     public async Task Consume(ConsumeContext<HoldTickets> context)
     {
+        using var activity = TicketerTelemetry.TicketActivitySource.StartActivity("hold.tickets");
+        activity?.SetTag(TicketerTelemetry.CommonTags.BookingId, context.Message.BookingId.ToString());
+        activity?.SetTag(TicketerTelemetry.CommonTags.EventId, context.Message.EventId.ToString());
+        activity?.SetTag("tickets.requested", context.Message.NumberOfTickets);
+        activity?.SetTag(TicketerTelemetry.CommonTags.CorrelationId, context.CorrelationId?.ToString());
+        
         try
         {
             _logger.LogInformation("HoldTicketsConsumer received a message: BookingId={BookingId}, EventId={EventId}, NumberOfTickets={NumberOfTickets}",
@@ -28,6 +36,9 @@ public class HoldTicketsConsumer : IConsumer<HoldTickets>
             
             if (result.Status == DTOs.TicketHoldStatus.SUCCESS)
             {
+                activity?.SetTag("operation.result", "success");
+                activity?.SetTag("tickets.held", result.TicketIds.Count);
+                
                 _logger.LogInformation(
                     "Successfully held {Count} tickets for event {EventId} for booking {BookingId}",
                     result.TicketIds.Count, result.EventId, context.Message.BookingId);
@@ -45,9 +56,20 @@ public class HoldTicketsConsumer : IConsumer<HoldTickets>
                     TotalPrice: totalPrice,
                     BookingDate: DateTime.UtcNow
                 ));
+                
+                // Record success metrics
+                TicketerTelemetry.TicketsReservedCounter.Add(result.TicketIds.Count, new TagList
+                {
+                    {"event.id", context.Message.EventId.ToString()},
+                    {"booking.id", context.Message.BookingId.ToString()}
+                });
             }
             else
             {
+                activity?.SetTag("operation.result", "failed");
+                activity?.SetTag("failure.reason", result.ErrorMessage);
+                activity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage);
+                
                 _logger.LogWarning(
                     "Failed to hold tickets for event {EventId} for booking {BookingId}: {ErrorMessage}",
                     result.EventId, context.Message.BookingId, result.ErrorMessage);
@@ -61,6 +83,11 @@ public class HoldTicketsConsumer : IConsumer<HoldTickets>
         }
         catch (Exception ex)
         {
+            activity?.SetTag("operation.result", "error");
+            activity?.SetTag("error.type", ex.GetType().Name);
+            activity?.SetTag("error.message", ex.Message);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            
             _logger.LogError(ex, "Error processing HoldTickets message for booking {BookingId}", context.Message.BookingId);
             
             // Publish failure event in case of exception
