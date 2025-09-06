@@ -50,7 +50,7 @@ Ticketer is a microservices-based application consisting of:
 
 ### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/Sathursan-S/Ticketer.git
 cd Ticketer
 ```
 
