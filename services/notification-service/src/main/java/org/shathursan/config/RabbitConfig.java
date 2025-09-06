@@ -31,11 +31,17 @@ public class RabbitConfig {
   public static final String Q_EVENT_UPDATED = "notificationEventUpdatedQueue";
   public static final String Q_EVENT_PUBLISHED = "notificationEventPublishedQueue";
   public static final String Q_EVENT_DELETED = "notificationEventDeletedQueue";
+  public static final String Q_BOOKING_CONFORMED = "reserve-tickets";
 
 
   @Bean
   TopicExchange paymentExchange() {
     return ExchangeBuilder.topicExchange(EXCHANGE).durable(true).build();
+  }
+
+  @Bean
+  Queue bookingConformedQueue() {
+    return QueueBuilder.durable(Q_BOOKING_CONFORMED).build();
   }
 
   @Bean

@@ -3,6 +3,7 @@ package org.shathursan.messaging;
 import lombok.RequiredArgsConstructor;
 import org.shathursan.config.RabbitConfig;
 import org.shathursan.contracts.EventCreated;
+import org.shathursan.contracts.ReserveTickets;
 import org.shathursan.dto.request.NotificationRequest;
 import org.shathursan.service.NotificationService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -52,6 +53,16 @@ private final NotificationService notificationService;
         "Event Published",
         "Your event '" + event.getEventName() + "' (ID: " + event.getEventId()
             + ") has been published."
+    ));
+  }
+
+  public void handleBookingConformed(ReserveTickets event) {
+    // Logic to handle the event and send notification
+    notificationService.sendNotification(new NotificationRequest(
+        event.getCustomerId(),
+        "Booking Conformed",
+        "Your Booking for event '" + event.getEventId() + "' has been conformed."
+            + ") has been conformed." + " Ticket Ids: " + event.getTicketIds()
     ));
   }
 

@@ -44,7 +44,7 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                     c.Saga.EventId = c.Message.EventId;
                     c.Saga.NumberOfTickets = c.Message.NumberOfTickets;
                     c.Saga.CreatedAt = c.Message.CreatedAt;
-                    
+
                     _logger.LogInformation("Booking created: {BookingId} for Customer {CustomerId}",
                         c.Saga.BookingId, c.Saga.CustomerId);
                 })
@@ -122,7 +122,7 @@ public class BookingStateMachine : MassTransitStateMachine<BookingState>
                 .Then(c => _logger.LogInformation("ReserveTickets command published for BookingId: {BookingId}", c.Saga.BookingId))
                 .TransitionTo(Confirmed)
 
-            
+
         );
 
         During(Confirmed,
