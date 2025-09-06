@@ -48,6 +48,7 @@ builder.Services.Configure<RabbitMqSettings>(
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<EventCreatedConsumer>();
+    x.AddConsumer<CreateEventTicketConsumer>();
     x.AddConsumer<HoldTicketsConsumer>();
     x.AddConsumer<ReleaseTicketsConsumer>();
     x.AddConsumer<ReserveTicketsConsumer>();

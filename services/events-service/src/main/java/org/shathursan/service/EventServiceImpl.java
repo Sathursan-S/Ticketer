@@ -13,6 +13,8 @@ import org.shathursan.entity.VenueInfo;
 import org.shathursan.entity.enums.EventCategory;
 import org.shathursan.entity.enums.EventStatus;
 import org.shathursan.repository.EventRepository;
+import org.shathursan.messaging.MessageProducer;
+import org.shathursan.contracts.CreateEventTicket;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 public class EventServiceImpl implements EventService {
 
   private final EventRepository eventRepository;
+  private final MessageProducer messageProducer;
 
   @Override
   public Event createEvent(EventRequest eventRequest) {
@@ -46,6 +49,12 @@ public class EventServiceImpl implements EventService {
           .status(EventStatus.PENDING)
           .build();
       eventRepository.save(entity);
+      // Minimal: send CreateEventTicket message after event creation
+      CreateEventTicket ticketMsg = CreateEventTicket.builder()
+        .eventId(entity.getId())
+        .numberOfTickets(entity.getTicketCapacity())
+        .build();
+      messageProducer.sendCreateEventTicket(ticketMsg);
       return entity;
     } catch (Exception e) {
       throw new RuntimeException("Failed to create event: " + e.getMessage(), e);

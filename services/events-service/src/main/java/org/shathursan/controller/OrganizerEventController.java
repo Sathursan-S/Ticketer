@@ -14,6 +14,7 @@ import org.shathursan.dto.response.ContentResponse;
 import org.shathursan.dto.response.EventResponse;
 import org.shathursan.entity.Event;
 import org.shathursan.messaging.EventPublisher;
+import org.shathursan.messaging.MessageProducer;
 import org.shathursan.repository.EventRepository;
 import org.shathursan.service.EventService;
 import org.shathursan.util.ApiEndpoints;
@@ -39,6 +40,11 @@ public class OrganizerEventController {
   private final NotificationClient notificationClient;
   private final EventRepository eventRepository;
   private final EventPublisher eventPublisher;
+  private final MessageProducer messageProducer;
+
+//  public OrganizerEventController(MessageProducer messageProducer){
+//    this.messageProducer = messageProducer;
+//  }
 
   @PreAuthorize("hasRole('ORGANIZER')")
   @PostMapping(ApiEndpoints.ADD_EVENT)
@@ -48,12 +54,13 @@ public class OrganizerEventController {
     String notificationStatus;
     String message = "Event created successfully.";
     try {
-        eventPublisher.publishEventCreated(
-            new EventCreated(event.getId(), event.getTicketCapacity())
-        );
-      notificationClient.sendNotification(
-          organizerDetails().getUserEmail(), "Event Created",
-          "Your event " + event.getEventName() + " has been created successfully."
+      messageProducer.sendMessage("event.created",
+          EventCreated.builder()
+              .eventId(event.getId())
+              .eventName(event.getEventName())
+              .userEmail(organizerDetails().getUserEmail())
+              .numberOfTickets(event.getTicketCapacity())
+              .build()
       );
       notificationStatus = "success";
     } catch (Exception e) {
@@ -84,9 +91,13 @@ public class OrganizerEventController {
       String notificationStatus;
       String message = "Event updated successfully.";
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event Updated",
-            "Your event " + event.getEventName() + " has been Updated successfully."
+        messageProducer.sendMessageUpdated("event.updated",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
@@ -121,14 +132,21 @@ public class OrganizerEventController {
   public ResponseEntity<ContentResponse<Void>> publish(@PathVariable Long id) {
     try {
       isUserExist(organizerDetails().getUserEmail());
+      //get event details
+      Event event = eventRepository.findById(id).orElseThrow(
+          () -> new RuntimeException("Event not found with id: " + id)
+      );
       eventService.publish(id);
       String notificationStatus;
-      String message = "Event created successfully.";
+      String message = "Event Published successfully.";
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event published",
-            "Your event " + eventRepository.findEventNameById(id)
-                + " has been published successfully."
+        messageProducer.sendMessagePublished("event.published",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
@@ -163,15 +181,21 @@ public class OrganizerEventController {
   public ResponseEntity<ContentResponse<Void>> cancel(@PathVariable Long id) {
     try {
       isUserExist(organizerDetails().getUserEmail());
+      Event event = eventRepository.findById(id).orElseThrow(
+          () -> new RuntimeException("Event not found with id: " + id)
+      );
       eventService.cancel(id);
       String notificationStatus;
       String message = "Event cancelled successfully.";
 
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event cancelled",
-            "Your event " + eventRepository.findEventNameById(id)
-                + " has been cancelled successfully."
+        messageProducer.sendMessageDeleted("event.deleted",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
@@ -269,7 +293,7 @@ public class OrganizerEventController {
       ResponseEntity<Boolean> response = restTemplate.getForEntity(uri, Boolean.class);
       return response.getBody() != null && response.getBody();
     } catch (Exception e) {
-      e.printStackTrace();
+//      e.printStackTrace();
       return false;
     }
   }

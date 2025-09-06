@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EventCreated {
+public class CreateEventTicket {
     private long eventId;
-    private String eventName;
-    private String userEmail;
     private int numberOfTickets;
 }
