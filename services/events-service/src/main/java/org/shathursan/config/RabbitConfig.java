@@ -12,12 +12,32 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
   public static final String EXCHANGE = "events.exchange";
   public static final String RK_EVENT_CREATED = "event.created";
+  public static final String RK_EVENT_DELETED = "event.deleted";
+  public static final String RK_EVENT_UPDATED = "event.updated";
+  public static final String RK_EVENT_PUBLISHED = "event.published";
+
   public static final String Q_EVENT_CREATED = "notificationEventCreatedQueue";
-
-
+  public static final String Q_EVENT_DELETED = "notificationEventDeletedQueue";
+  public static final String Q_EVENT_UPDATED = "notificationEventUpdatedQueue";
+  public static final String Q_EVENT_PUBLISHED = "notificationEventPublishedQueue";
   @Bean
   public Queue notificationEventCreatedQueue() {
     return new Queue(Q_EVENT_CREATED, true, false, false);
+  }
+
+  @Bean
+  public Queue notificationEventDeletedQueue() {
+    return new Queue(Q_EVENT_DELETED, true, false, false);
+  }
+
+  @Bean
+  public Queue notificationEventUpdatedQueue() {
+    return new Queue(Q_EVENT_UPDATED, true, false, false);
+  }
+
+  @Bean
+  public Queue notificationEventPublishedQueue() {
+    return new Queue(Q_EVENT_PUBLISHED, true, false, false);
   }
 
   @Bean

@@ -22,4 +22,38 @@ private final NotificationService notificationService;
         "Your event '" + event.getEventName() + "' (ID: " + event.getEventId() + ") has been created successfully."
     ));
   }
+
+  @RabbitListener(queues = RabbitConfig.Q_EVENT_DELETED)
+  public void handleEventDeleted(EventCreated event) {
+    // Logic to handle the event and send notification
+    notificationService.sendNotification(new NotificationRequest(
+        event.getUserEmail(),
+        "Event Cancelled",
+        "Your event '" + event.getEventName() + "' (ID: " + event.getEventId() + ") has been Cancelled."
+    ));
+  }
+
+  @RabbitListener(queues = RabbitConfig.Q_EVENT_UPDATED)
+  public void handleEventUpdated(EventCreated event) {
+    // Logic to handle the event and send notification
+    notificationService.sendNotification(new NotificationRequest(
+        event.getUserEmail(),
+        "Event Updated",
+        "Your event '" + event.getEventName() + "' (ID: " + event.getEventId()
+            + ") has been updated."
+    ));
+  }
+
+  @RabbitListener(queues = RabbitConfig.Q_EVENT_PUBLISHED)
+  public void handleEventPublished(EventCreated event) {
+    // Logic to handle the event and send notification
+    notificationService.sendNotification(new NotificationRequest(
+        event.getUserEmail(),
+        "Event Published",
+        "Your event '" + event.getEventName() + "' (ID: " + event.getEventId()
+            + ") has been published."
+    ));
+  }
+
+
 }

@@ -91,9 +91,13 @@ public class OrganizerEventController {
       String notificationStatus;
       String message = "Event updated successfully.";
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event Updated",
-            "Your event " + event.getEventName() + " has been Updated successfully."
+        messageProducer.sendMessageUpdated("event.updated",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
@@ -128,14 +132,21 @@ public class OrganizerEventController {
   public ResponseEntity<ContentResponse<Void>> publish(@PathVariable Long id) {
     try {
       isUserExist(organizerDetails().getUserEmail());
+      //get event details
+      Event event = eventRepository.findById(id).orElseThrow(
+          () -> new RuntimeException("Event not found with id: " + id)
+      );
       eventService.publish(id);
       String notificationStatus;
-      String message = "Event created successfully.";
+      String message = "Event Published successfully.";
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event published",
-            "Your event " + eventRepository.findEventNameById(id)
-                + " has been published successfully."
+        messageProducer.sendMessagePublished("event.published",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
@@ -170,15 +181,21 @@ public class OrganizerEventController {
   public ResponseEntity<ContentResponse<Void>> cancel(@PathVariable Long id) {
     try {
       isUserExist(organizerDetails().getUserEmail());
+      Event event = eventRepository.findById(id).orElseThrow(
+          () -> new RuntimeException("Event not found with id: " + id)
+      );
       eventService.cancel(id);
       String notificationStatus;
       String message = "Event cancelled successfully.";
 
       try {
-        notificationClient.sendNotification(
-            organizerDetails().getUserEmail(), "Event cancelled",
-            "Your event " + eventRepository.findEventNameById(id)
-                + " has been cancelled successfully."
+        messageProducer.sendMessageDeleted("event.deleted",
+            EventCreated.builder()
+                .eventId(event.getId())
+                .eventName(event.getEventName())
+                .userEmail(organizerDetails().getUserEmail())
+                .numberOfTickets(event.getTicketCapacity())
+                .build()
         );
         notificationStatus = "success";
       } catch (Exception e) {
