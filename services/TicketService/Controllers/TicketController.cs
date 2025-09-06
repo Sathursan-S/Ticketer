@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using TicketService.Application.Services;
 using TicketService.DTOs;
+using TicketService.Repositoy;
 using TicketService.Services;
 
 namespace TicketService.Controllers;
@@ -26,11 +27,13 @@ public class TicketController : ControllerBase
 {
     private readonly ITicketService _ticketService;
     private readonly ILogger<TicketController> _logger;
+    private readonly ITicketRepository _ticketRepository;
 
-    public TicketController(ITicketService ticketService, ILogger<TicketController> logger)
+    public TicketController(ITicketService ticketService, ILogger<TicketController> logger, ITicketRepository ticketRepository)
     {
         _ticketService = ticketService ?? throw new ArgumentNullException(nameof(ticketService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _ticketRepository = ticketRepository ?? throw new ArgumentNullException(nameof(ticketRepository));
     }
 
     /// <summary>
@@ -75,12 +78,12 @@ public class TicketController : ControllerBase
         {
             _logger.LogInformation("API Request: Getting ticket with ID: {TicketId}", id);
             var result = await _ticketService.GetTicketByIdAsync(id);
-            
+
             if (result == null)
             {
                 return NotFound($"Ticket with ID {id} not found");
             }
-            
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -138,17 +141,17 @@ public class TicketController : ControllerBase
                 var tickets = await _ticketService.CreateBulkTicketsAsync(request);
                 return Ok(tickets);
             }
-            
+
             _logger.LogInformation("API Request: Creating ticket for event ID: {EventId}", request.EventId);
-            
+
             // Validate the request
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            
+
             var result = await _ticketService.CreateTicketAsync(request);
-            
+
             // Return 201 Created with the location header pointing to the newly created resource
             return CreatedAtAction(
                 nameof(GetTicket),
@@ -185,28 +188,28 @@ public class TicketController : ControllerBase
         try
         {
             _logger.LogInformation("API Request: Creating {Quantity} tickets for event ID: {EventId}", request.Quantity, request.EventId);
-            
+
             // Validate the request
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            
+
             // Additional validation
             if (request.Quantity <= 0)
             {
                 return BadRequest("Quantity must be greater than zero");
             }
-            
+
             var count = await _ticketService.CreateBulkTicketsAsync(request);
-            
+
             var response = new BulkCreationResponse
             {
                 EventId = request.EventId,
                 TicketsCreated = count,
                 Message = $"Successfully created {count} tickets for event {request.EventId}"
             };
-            
+
             // Return 201 Created with a custom response
             return StatusCode(StatusCodes.Status201Created, response);
         }
@@ -242,20 +245,20 @@ public class TicketController : ControllerBase
         try
         {
             _logger.LogInformation("API Request: Updating status to {Status} for ticket ID: {TicketId}", request.Status, id);
-            
+
             // Validate the request
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            
+
             var result = await _ticketService.UpdateTicketStatusAsync(id, request.Status);
-            
+
             if (result == null)
             {
                 return NotFound($"Ticket with ID {id} not found");
             }
-            
+
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -287,19 +290,88 @@ public class TicketController : ControllerBase
         try
         {
             _logger.LogInformation("API Request: Deleting ticket with ID: {TicketId}", id);
-            
+
             var result = await _ticketService.DeleteTicketAsync(id);
-            
+
             if (!result)
             {
                 return NotFound($"Ticket with ID {id} not found");
             }
-            
+
             return NoContent();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while deleting ticket ID: {TicketId}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, ApiResponses.InternalServerError);
+        }
+    }
+    
+    public record ReserveTicketsRequest(long EventId, List<Guid> TicketIds);
+    public record ReleaseTicketsRequest(long EventId, List<Guid> TicketIds);
+
+    // test endpoint to reserve tickets
+    [HttpPost("reserve")]
+    public async Task<ActionResult<bool>> ReserveTickets([FromBody] ReserveTicketsRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("API Request: Reserving {TicketCount} tickets for event ID: {EventId}", request.TicketIds.Count, request.EventId);
+
+            if (request.TicketIds == null || !request.TicketIds.Any())
+            {
+                return BadRequest("TicketIds cannot be null or empty");
+            }
+
+            // // Naive implementation - commented out
+            // foreach (var ticketId in request.TicketIds)
+            // {
+            //     var success = await _ticketService.UpdateTicketStatusAsync(ticketId, TicketStatus.RESERVED);
+            //     if (!success)
+            //     {
+            //         return false;
+            //     }
+            // }
+
+            // Use repository's optimized reserve method with transaction and row locking
+            return await _ticketRepository.ReserveTicketsAsync(request.TicketIds, request.EventId);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error occurred while reserving tickets for event ID: {EventId}", request.EventId);
+            return StatusCode(StatusCodes.Status500InternalServerError, ApiResponses.InternalServerError);
+        }
+    }
+
+    // test endpoint to release tickets
+    [HttpPost("release")]
+    public async Task<ActionResult<bool>> ReleaseTickets([FromBody] ReleaseTicketsRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("API Request: Releasing {TicketCount} tickets for event ID: {EventId}", request.TicketIds.Count, request.EventId);
+
+            if (request.TicketIds == null || !request.TicketIds.Any())
+            {
+                return BadRequest("TicketIds cannot be null or empty");
+            }
+
+            // // Naive implementation - commented out
+            // foreach (var ticketId in request.TicketIds)
+            // {
+            //     var success = await _ticketService.UpdateTicketStatusAsync(ticketId, TicketStatus.AVAILABLE);
+            //     if (!success)
+            //     {
+            //         return false;
+            //     }
+            // }
+
+            // Use repository's optimized release method with transaction and row locking
+            return await _ticketRepository.ReleaseTicketsAsync(request.TicketIds, request.EventId);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error occurred while releasing tickets for event ID: {EventId}", request.EventId);
             return StatusCode(StatusCodes.Status500InternalServerError, ApiResponses.InternalServerError);
         }
     }

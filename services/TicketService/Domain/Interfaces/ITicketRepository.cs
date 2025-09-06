@@ -10,5 +10,7 @@ public interface ITicketRepository
     Task<IEnumerable<Ticket>> GetTicketsByEventIdAsync(long eventId);
     Task<Ticket> CreateTicketAsync(Ticket request);
     Task<bool> UpdateTicketStatusAsync(Guid ticketId, TicketStatus status);
+    Task<bool> ReserveTicketsAsync(IEnumerable<Guid> ticketIds, long eventId);
+    Task<bool> ReleaseTicketsAsync(IEnumerable<Guid> ticketIds, long eventId);
     Task<bool> DeleteTicketAsync(Guid ticketId);
 }

@@ -201,22 +201,17 @@ public class TicketService : ITicketService
     {
         try
         {
-            _logger.LogInformation("Reserving tickets for BookingId: {BookingId}", request.BookingId);
+            _logger.LogInformation("Reserving {Count} tickets for BookingId: {BookingId}, EventId: {EventId}", 
+                request.TicketIds.Count, request.BookingId, request.EventId);
 
-            var tasks = request.TicketIds.Select(ticketId =>
-                _ticketRepository.UpdateTicketStatusAsync(ticketId, TicketStatus.SOLD));
-            var results = await Task.WhenAll(tasks);
-
-            if (results.All(r => r))
+            if (!request.TicketIds.Any())
             {
-                return true;
-            }
-            else
-            {
-                _logger.LogWarning("Failed to reserve one or more tickets for BookingId: {BookingId}",
-                    request.BookingId);
+                _logger.LogWarning("No ticket IDs provided for reservation for BookingId: {BookingId}", request.BookingId);
                 return false;
             }
+
+            // Use repository's optimized reservation method with transaction and row locking
+            return await _ticketRepository.ReserveTicketsAsync(request.TicketIds, request.EventId);
         }
         catch (Exception e)
         {
@@ -229,27 +224,42 @@ public class TicketService : ITicketService
     {
         try
         {
-            _logger.LogInformation("Releasing tickets for BookingId: {BookingId}", request.BookingId);
+            _logger.LogInformation("Releasing {Count} tickets for BookingId: {BookingId}, EventId: {EventId}", 
+                request.TicketIds.Count, request.BookingId, request.EventId);
 
-            if (request.TicketIds == null || !request.TicketIds.Any())
+            if (!request.TicketIds.Any())
             {
                 _logger.LogWarning("No ticket IDs provided for release for BookingId: {BookingId}", request.BookingId);
                 return false;
             }
 
-            var tasks = request.TicketIds.Select(ticketId =>
-                _ticketRepository.UpdateTicketStatusAsync(ticketId, TicketStatus.AVAILABLE));
-            var results = await Task.WhenAll(tasks);
-            if (results.All(r => r))
-            {
-                return true;
-            }
-            else
-            {
-                _logger.LogWarning("Failed to release one or more tickets for BookingId: {BookingId}",
-                    request.BookingId);
-                return false;
-            }
+            //  // Ensure all tickets are currently ONHOLD before reserving
+            //     var tickets = await Task.WhenAll(request.TicketIds.Select(id => _ticketRepository.GetTicketByIdAsync(id)));
+            //     var notOnHold = tickets.Where(t => t == null || t.Status != TicketStatus.ONHOLD).ToList();
+            //     if (notOnHold.Any())
+            //     {
+            //         _logger.LogWarning("One or more tickets are not ONHOLD for BookingId: {BookingId}", request.BookingId);
+            //         return false;
+            //     }
+
+            //     // Attempt to update all tickets to SOLD
+            //     var tasks = request.TicketIds.Select(ticketId =>
+            //         _ticketRepository.UpdateTicketStatusAsync(ticketId, TicketStatus.AVAILABLE));
+            //     var results = await Task.WhenAll(tasks);
+
+            //     if (results.All(r => r))
+            //     {
+            //         return true;
+            //     }
+            //     else
+            //     {
+            //         _logger.LogWarning("Failed to reserve one or more tickets for BookingId: {BookingId}", request.BookingId);
+            //         // Optionally, rollback any successful updates here if needed
+            //         return false;
+            //     }
+
+            // Use repository's optimized release method with transaction and row locking
+            return await _ticketRepository.ReleaseTicketsAsync(request.TicketIds, request.EventId);
         }
         catch (Exception e)
         {

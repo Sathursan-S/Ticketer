@@ -146,6 +146,100 @@ public class TicketRepository : ITicketRepository
         }
     }
 
+    public async Task<bool> ReserveTicketsAsync(IEnumerable<Guid> ticketIds, long eventId)
+    {
+        var ticketList = ticketIds.ToList();
+        if (!ticketList.Any())
+        {
+            _logger.LogWarning("No ticket IDs provided for reservation for event ID: {EventId}", eventId);
+            return false;
+        }
+
+        _logger.LogInformation("Reserving {Count} tickets for event ID: {EventId}", ticketList.Count, eventId);
+
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+                var updatedCount = await _context.Tickets
+                    .Where(t => ticketList.Contains(t.TicketId) && t.Status == TicketStatus.ONHOLD)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.Status, TicketStatus.SOLD)
+                        .SetProperty(t => t.SoldDate, DateTime.UtcNow));
+
+                if (updatedCount != ticketList.Count)
+                {
+                    _logger.LogWarning("Expected to reserve {ExpectedCount} tickets but only reserved {ActualCount}. " +
+                        "Some tickets may not exist, may not be ONHOLD, or were modified concurrently.",
+                        ticketList.Count, updatedCount);
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+
+                await transaction.CommitAsync();
+                _logger.LogInformation("Successfully reserved {Count} tickets for event ID: {EventId}", updatedCount, eventId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error occurred while reserving tickets for event ID: {EventId}", eventId);
+                throw new RepositoryException($"Failed to reserve tickets for event ID: {eventId}", ex);
+            }
+        });
+    }
+
+    public async Task<bool> ReleaseTicketsAsync(IEnumerable<Guid> ticketIds, long eventId)
+    {
+        var ticketList = ticketIds.ToList();
+        if (!ticketList.Any())
+        {
+            _logger.LogWarning("No ticket IDs provided for release for event ID: {EventId}", eventId);
+            return false;
+        }
+
+        _logger.LogInformation("Releasing {Count} tickets for event ID: {EventId}", ticketList.Count, eventId);
+
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+                var updatedCount = await _context.Tickets
+                    .Where(t => ticketList.Contains(t.TicketId) && t.Status == TicketStatus.ONHOLD)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.Status, TicketStatus.AVAILABLE)
+                        .SetProperty(t => t.BookingDate, (DateTime?)null));
+
+                if (updatedCount != ticketList.Count)
+                {
+                    _logger.LogWarning("Expected to release {ExpectedCount} tickets but only released {ActualCount}. " +
+                        "Some tickets may not exist, may not be ONHOLD, or were modified concurrently.",
+                        ticketList.Count, updatedCount);
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+
+                await transaction.CommitAsync();
+                _logger.LogInformation("Successfully released {Count} tickets for event ID: {EventId}", updatedCount, eventId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error occurred while releasing tickets for event ID: {EventId}", eventId);
+                throw new RepositoryException($"Failed to release tickets for event ID: {eventId}", ex);
+            }
+        });
+    }
+
     public async Task<bool> DeleteTicketAsync(Guid ticketId)
     {
         try

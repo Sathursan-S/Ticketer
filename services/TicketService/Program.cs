@@ -286,10 +286,10 @@ builder.Services.AddOpenTelemetry()
         // 👇 Filter out the noisy Kestrel metric
         .AddView("kestrel.keep_alive_timeout", new MetricStreamConfiguration()));
 
-// // Configure logging
-// builder.Logging.ClearProviders();
-// builder.Logging.AddConsole();
-// builder.Logging.AddDebug();
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 var app = builder.Build();
 
