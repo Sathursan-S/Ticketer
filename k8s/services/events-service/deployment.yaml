@@ -28,6 +28,16 @@ spec:
               value: "postgres"
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USERNAME
+              value: "guest"
+            - name: RABBITMQ_PASSWORD
+              value: "guest"
+            - name: RABBITMQ_VIRTUAL_HOST
+              value: "/"
           livenessProbe:
             httpGet:
               path: /actuator/health
