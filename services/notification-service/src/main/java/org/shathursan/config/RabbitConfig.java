@@ -1,10 +1,12 @@
 package org.shathursan.config;
 
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,6 +17,10 @@ public class RabbitConfig {
   public static final String RK_FAILED  = "payment.failed";
   public static final String Q_SUCCESS  = "notification.payment.succeeded.q";
   public static final String Q_FAILED   = "notification.payment.failed.q";
+  public static final String Q_EVENT_CREATED = "notificationEventCreatedQueue";
+  public static final String EVENTS_EXCHANGE = "events.exchange";
+  public static final String RK_EVENT_CREATED = "event.created";
+
 
   @Bean TopicExchange paymentExchange() {
     return ExchangeBuilder.topicExchange(EXCHANGE).durable(true).build();
@@ -48,4 +54,27 @@ public class RabbitConfig {
     tpl.setMessageConverter(conv);
     return tpl;
   }
+
+
+
+
+
+@Bean
+public Queue notificationEventCreatedQueue() {
+    return QueueBuilder.durable(Q_EVENT_CREATED).build();
+}
+
+@Bean
+TopicExchange eventsExchange() {
+    return ExchangeBuilder.topicExchange(EVENTS_EXCHANGE).durable(true).build();
+}
+
+@Bean
+Binding bindEventCreated(
+    @Qualifier("notificationEventCreatedQueue") Queue eventCreatedQueue,
+    TopicExchange eventsExchange
+) {
+    return BindingBuilder.bind(eventCreatedQueue).to(eventsExchange).with(RK_EVENT_CREATED);
+}
+
 }

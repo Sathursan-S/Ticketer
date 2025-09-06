@@ -1,5 +1,6 @@
 package org.shathursan.config;
 
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -11,6 +12,13 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
   public static final String EXCHANGE = "events.exchange";
   public static final String RK_EVENT_CREATED = "event.created";
+  public static final String Q_EVENT_CREATED = "notificationEventCreatedQueue";
+
+
+  @Bean
+  public Queue notificationEventCreatedQueue() {
+    return new Queue(Q_EVENT_CREATED, true, false, false);
+  }
 
   @Bean
   public TopicExchange eventsExchange() {
@@ -28,4 +36,5 @@ public class RabbitConfig {
     tpl.setMessageConverter(jackson2JsonMessageConverter());
     return tpl;
   }
+
 }
