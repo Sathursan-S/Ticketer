@@ -366,102 +366,98 @@ Each microservice owns its data and database:
 
 ```mermaid
 erDiagram
-    AUTH_DB {
-        users ||--o{ user_roles : has
-        users {
-            uuid id PK
-            string email UK
-            string first_name
-            string last_name
-            string password_hash
-            timestamp created_at
-            timestamp updated_at
-        }
-        user_roles {
-            uuid id PK
-            uuid user_id FK
-            string role_name
-        }
+    users {
+        uuid id PK
+        string email UK
+        string first_name
+        string last_name
+        string password_hash
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    user_roles {
+        uuid id PK
+        uuid user_id FK
+        string role_name
+    }
+
+    events {
+        bigint id PK
+        string event_name
+        text description
+        string category
+        string location
+        date event_date
+        time start_time
+        time end_time
+        int ticket_capacity
+        decimal ticket_price
+        string organizer
+        enum status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    tickets {
+        uuid ticket_id PK
+        bigint event_id FK
+        enum status
+        timestamp created_at
+        timestamp updated_at
+        int version
+    }
+
+    saga_state {
+        uuid correlation_id PK
+        string current_state
+        uuid booking_id
+        string customer_id
+        bigint event_id
+        int number_of_tickets
+        json ticket_ids
+        decimal payment_amount
+    }
+
+    outbox_messages {
+        uuid id PK
+        string message_type
+        json payload
+        timestamp created_at
+        boolean processed
+    }
+
+    bookings {
+        uuid booking_id PK
+        string customer_id
+        bigint event_id
+        int number_of_tickets
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    notifications {
+        bigint id PK
+        string recipient
+        string subject
+        text body
+        string notification_type
+        string status
+        bigint event_id
+        uuid booking_id
+        timestamp created_at
+        timestamp sent_at
+        int retry_count
     }
     
-    EVENTS_DB {
-        events {
-            bigint id PK
-            string event_name
-            text description
-            string category
-            string location
-            date event_date
-            time start_time
-            time end_time
-            int ticket_capacity
-            decimal ticket_price
-            string organizer
-            enum status
-            timestamp created_at
-            timestamp updated_at
-        }
-    }
-    
-    TICKETS_DB {
-        tickets {
-            uuid ticket_id PK
-            bigint event_id FK
-            enum status
-            timestamp created_at
-            timestamp updated_at
-            int version
-        }
-    }
-    
-    BOOKING_DB {
-        saga_state ||--o{ outbox_messages : generates
-        saga_state {
-            uuid correlation_id PK
-            string current_state
-            uuid booking_id
-            uuid customer_id
-            bigint event_id
-            int number_of_tickets
-            json ticket_ids
-            decimal payment_amount
-        }
-        outbox_messages {
-            uuid id PK
-            string message_type
-            json payload
-            timestamp created_at
-            boolean processed
-        }
-    }
-    
-    BOOKING_MONGO {
-        bookings {
-            uuid booking_id PK
-            uuid customer_id
-            bigint event_id
-            int number_of_tickets
-            string status
-            timestamp created_at
-            timestamp updated_at
-        }
-    }
-    
-    NOTIFICATIONS_DB {
-        notifications {
-            bigint id PK
-            string recipient
-            string subject
-            text body
-            string notification_type
-            string status
-            bigint event_id
-            uuid booking_id
-            timestamp created_at
-            timestamp sent_at
-            int retry_count
-        }
-    }
+    users ||--o{ user_roles : "has"
+    events ||--o{ tickets : "has"
+    events ||--o{ notifications : "triggers"
+    saga_state ||--o{ outbox_messages : "generates"
+    bookings ||--|| events : "is for"
+    bookings ||--|| saga_state : "is linked to"
+    bookings ||--|| notifications : "generates"
 ```
 
 ### Data Consistency Strategies
@@ -655,7 +651,7 @@ networks:
 graph TB
     subgraph "Kubernetes Cluster"
         subgraph "Ingress"
-            Ingress[NGINX Ingress Controller]
+            IngressController[NGINX Ingress Controller]
         end
         
         subgraph "Services Layer"
@@ -681,8 +677,8 @@ graph TB
         end
     end
     
-    Internet --> Ingress
-    Ingress --> GatewayPod
+    Internet --> IngressController
+    IngressController --> GatewayPod
     GatewayPod --> AuthPod
     GatewayPod --> EventsPod
     GatewayPod --> BookingPod
