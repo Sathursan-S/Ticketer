@@ -7,215 +7,128 @@ namespace BookingService.Application.Sagas;
 public class BookingStateMachine : MassTransitStateMachine<BookingState>
 {
     private readonly ILogger<BookingStateMachine> _logger;
+
     // States
-    public State BookingCreated { get; private set; }
-    public State ProcessingPayment { get; private set; }
-    public State ConfirmingTickets { get; private set; }
-    public State BookingCompleted { get; private set; }
-    public State BookingFailed { get; private set; }
+    public State Created { get; private set; }
+    public State Paid { get; private set; }
+    public State Confirmed { get; private set; }
+    public State Failed { get; private set; }
 
     // Events
-    public Event<BookingCreatedEvent> BookingCreatedEvent { get; private set; }
-    public Event<TicketsReservedEvent> TicketsReservedEvent { get; private set; }
-    public Event<TicketReservationFailedEvent> TicketReservationFailedEvent { get; private set; }
-    public Event<PaymentProcessedEvent> PaymentProcessedEvent { get; private set; }
-    public Event<PaymentFailedEvent> PaymentFailedEvent { get; private set; }
-    public Event<BookingConfirmedEvent> BookingConfirmedEvent { get; private set; }
-    public Event<BookingFailedEvent> BookingFailedEvent { get; private set; }
+    public Event<BookingCreatedEvent> BookingCreated { get; private set; }
+    public Event<TicketsReservedEvent> TicketsReserved { get; private set; }
+    public Event<PaymentProcessedEvent> PaymentProcessed { get; private set; }
+    public Event<PaymentFailedEvent> PaymentFailed { get; private set; }
+    public Event<BookingFailedEvent> BookingFailed { get; private set; }
 
     public BookingStateMachine(ILogger<BookingStateMachine> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger;
 
-        // Map saga state to DB
         InstanceState(x => x.CurrentState);
 
-        // Correlate events
-        Event(() => BookingCreatedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => TicketsReservedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => TicketReservationFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => PaymentProcessedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => PaymentFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => BookingConfirmedEvent, x => x.CorrelateById(context => context.Message.BookingId));
-        Event(() => BookingFailedEvent, x => x.CorrelateById(context => context.Message.BookingId));
+        Event(() => BookingCreated, x => x.CorrelateById(m => m.Message.BookingId));
+        Event(() => TicketsReserved, x => x.CorrelateById(m => m.Message.BookingId));
+        Event(() => PaymentProcessed, x => x.CorrelateById(m => m.Message.BookingId));
+        Event(() => PaymentFailed, x => x.CorrelateById(m => m.Message.BookingId));
+        Event(() => BookingFailed, x => x.CorrelateById(m => m.Message.BookingId));
 
         // Start saga when booking is created
         Initially(
-            When(BookingCreatedEvent)
-            .Then(context => _logger.LogInformation("Booking created with ID: {BookingId} for Customer: {CustomerId}", context.Message.BookingId, context.Message.CustomerId))
-                .Then(context =>
+            When(BookingCreated)
+                .Then(c =>
                 {
-                    context.Saga.CorrelationId = context.Message.BookingId;
-                    context.Saga.CustomerId = context.Message.CustomerId;
-                    context.Saga.BookingId = context.Message.BookingId;
-                    context.Saga.CreatedAt = DateTime.UtcNow;
-                    context.Saga.EventId = context.Message.EventId;
-                    context.Saga.NumberOfTickets = context.Message.NumberOfTickets;
+                    c.Saga.CorrelationId = c.Message.BookingId;
+                    c.Saga.BookingId = c.Message.BookingId;
+                    c.Saga.CustomerId = c.Message.CustomerId;
+                    c.Saga.EventId = c.Message.EventId;
+                    c.Saga.NumberOfTickets = c.Message.NumberOfTickets;
+                    c.Saga.CreatedAt = c.Message.CreatedAt;
+                    
+                    _logger.LogInformation("Booking created: {BookingId} for Customer {CustomerId}",
+                        c.Saga.BookingId, c.Saga.CustomerId);
                 })
-                .PublishAsync(context => context.Init<HoldTickets>(new
+                .PublishAsync(c => c.Init<HoldTickets>(new
                 {
-                    BookingId = context.Saga.BookingId,
-                    EventId = context.Saga.EventId,
-                    NumberOfTickets = context.Saga.NumberOfTickets,
-                    CustomerId = context.Saga.CustomerId ?? string.Empty
+                    BookingId = c.Saga.BookingId,
+                    EventId = c.Saga.EventId,
+                    NumberOfTickets = c.Saga.NumberOfTickets,
+                    CustomerId = c.Saga.CustomerId
                 }))
-                .Catch<Exception>(ex => ex
-                    .ThenAsync(async context =>
-                    {
-                        var exceptionMessage = context.Exception.Message;
-                        _logger.LogError(context.Exception, "An error occurred while creating booking with ID: {BookingId}", context.Saga.BookingId);
-                        await context.Publish(new BookingFailedEvent
-                        {
-                            BookingId = context.Saga.BookingId,
-                            Reason = $"An error occurred while creating booking: {exceptionMessage}"
-                        });
-                    })
-                    .TransitionTo(BookingFailed)
-                    .Finalize()
-                )
-                .TransitionTo(BookingCreated)
-                .Then(context => _logger.LogInformation("Booking process started for BookingId: {BookingId}", context.Saga.BookingId))
+                .Then(c => _logger.LogInformation("HoldTickets command published for BookingId: {BookingId}", c.Saga.BookingId))
+                .TransitionTo(Created)
         );
 
-        // When tickets are held or failed
-        During(BookingCreated,
-            When(TicketsReservedEvent)
-            .Then(context => _logger.LogInformation("Tickets reserved for BookingId: {BookingId}, TicketIds: {TicketIds}", context.Saga.BookingId, string.Join(", ", context.Message.TicketIds)))
+        During(Created,
+            When(TicketsReserved)
+                .Then(c =>
+                {
+                    _logger.LogInformation("TicketsReserved event received : {Message} Tickets: {Tickets}", c.Message, c.Message.TicketIds);
+                    c.Saga.Tickets = c.Message.TicketIds;
+                    c.Saga.TotalPrice = c.Message.TotalPrice;
+                    c.Saga.UpdatedAt = DateTime.UtcNow;
+
+                    _logger.LogInformation("Tickets reserved for BookingId: {BookingId} Tickets: {Tickets}", c.Saga.BookingId, c.Saga.Tickets);
+                })
+                .PublishAsync(c => c.Init<ProcessPayment>(new
+                {
+                    BookingId = c.Saga.BookingId,
+                    CustomerId = c.Saga.CustomerId ?? String.Empty,
+                    Amount = c.Saga.TotalPrice
+                }))
+                .Then(c => _logger.LogInformation("ProcessPayment command published for BookingId: {BookingId}", c.Saga.BookingId))
+                .TransitionTo(Paid),
+
+            When(BookingFailed)
+                .Then(c => _logger.LogWarning("Booking failed at Created state for BookingId: {BookingId}, Reason: {Reason}",
+                    c.Saga.BookingId, c.Message.Reason))
+                .Finalize()
+        );
+
+        During(Paid,
+        When(PaymentFailed)
+                .Then(c => _logger.LogWarning("Payment failed for BookingId: {BookingId}", c.Saga.BookingId))
+                .PublishAsync(c => c.Init<ReleaseTickets>(new
+                {
+                    BookingID = c.Saga.BookingId,
+                    EventId = c.Saga.EventId,
+                    TicketIds = c.Saga.Tickets,
+                    Reason = "Payment failed"
+                }))
+                .Then(c => _logger.LogInformation("ReleaseTickets command published for BookingId: {BookingId}", c.Saga.BookingId))
+                .PublishAsync(c => c.Init<BookingFailedEvent>(new
+                {
+                    BookingId = c.Saga.BookingId,
+                    Reason = "Payment failed"
+                }))
+                .Then(c => _logger.LogWarning("Booking failed event published for BookingId: {BookingId}", c.Saga.BookingId))
+                .TransitionTo(Failed)
+                .Finalize(),
+
+            When(PaymentProcessed)
+                .Then(c => _logger.LogInformation("Payment processed for BookingId: {BookingId} paymentIntentId: {PayId}", c.Saga.BookingId, c.Message.PaymentIntentId))
                 .Then(context =>
                 {
-                    context.Saga.Tickets = context.Message.TicketIds;
-                    context.Saga.TotalPrice = context.Message.TotalPrice;
+                    context.Saga.PaymentIntentId = context.Message.PaymentIntentId;
                     context.Saga.UpdatedAt = DateTime.UtcNow;
                 })
-                .PublishAsync(context => context.Init<ProcessPayment>(new
-                {
-                    BookingId = context.Saga.BookingId,
-                    CustomerId = context.Saga.CustomerId ?? string.Empty,
-                    Amount = context.Saga.TotalPrice
-                }))
-                .Catch<Exception>(ex => ex
-                    .ThenAsync(async context =>
-                    {
-                        var exceptionMessage = context.Exception.Message;
-                        _logger.LogError(context.Exception, "An error occurred while processing payment for BookingId: {BookingId}", context.Saga.BookingId);
-                        await context.Publish(new BookingFailedEvent
-                        {
-                            BookingId = context.Saga.BookingId,
-                            Reason = $"An error occurred while processing payment: {exceptionMessage}"
-                        });
-                    })
-                    .TransitionTo(BookingFailed)
-                    .Finalize()
-                )
-                .TransitionTo(ProcessingPayment)
-                .Then(context => _logger.LogInformation("Payment processing started for BookingId: {BookingId}", context.Saga.BookingId)),
-
-            When(TicketReservationFailedEvent)
-                .PublishAsync(context => context.Init<BookingFailedEvent>(new
-                {
-                    BookingId = context.Saga.BookingId,
-                    Reason = "Ticket reservation failed"
-                }))
-                .TransitionTo(BookingFailed)
-                .Finalize()
-        );
-
-        // Payment processing
-        During(ProcessingPayment,
-            When(PaymentProcessedEvent)
-            .Then(context => _logger.LogInformation("Payment processed for BookingId: {BookingId}, PaymentIntentId: {PaymentIntentId}", context.Saga.BookingId, context.Message.PaymentIntentId))
-            .Then(context =>
-            {
-                context.Saga.PaymentIntentId = context.Message.PaymentIntentId;
-                context.Saga.UpdatedAt = DateTime.UtcNow;
-            })
-            .PublishAsync(context => context.Init<ReserveTickets>(new
-            {
-                BookingId = context.Saga.BookingId,
-                EventId = context.Saga.EventId,
-                TicketIds = context.Saga.Tickets,
-                CustomerId = context.Saga.CustomerId ?? string.Empty
-            }))
-            .Catch<Exception>(ex => ex
-                .ThenAsync(async context =>
-                {
-                var exceptionMessage = context.Exception.Message;
-                _logger.LogError(context.Exception, "An error occurred while reserving tickets for BookingId: {BookingId}", context.Saga.BookingId);
-                await context.Publish(new BookingFailedEvent
-                {
-                    BookingId = context.Saga.BookingId,
-                    Reason = $"An error occurred while reserving tickets: {exceptionMessage}"
-                });
-                })
-                .TransitionTo(BookingFailed)
-                .Finalize()
-            )
-            .TransitionTo(ConfirmingTickets),
-
-            When(PaymentFailedEvent)
-            .Then(context => _logger.LogWarning("Payment failed for BookingId: {BookingId}", context.Saga.BookingId))
-            .PublishAsync(context => context.Init<ReleaseTickets>(new
-            {
-                BookingId = context.Saga.BookingId,
-                EventId = context.Saga.EventId,
-                TicketIds = context.Saga.Tickets,
-                Reason = "Payment failed"
-            }))
-            .PublishAsync(context => context.Init<BookingFailedEvent>(new
-            {
-                BookingId = context.Saga.BookingId,
-                Reason = "Payment failed"
-            }))
-            .Catch<Exception>(ex => ex
-                .ThenAsync(async context =>
-                {
-                var exceptionMessage = context.Exception.Message;
-                _logger.LogError(context.Exception, "An error occurred while handling payment failure for BookingId: {BookingId}", context.Saga.BookingId);
-                await context.Publish(new BookingFailedEvent
-                {
-                    BookingId = context.Saga.BookingId,
-                    Reason = $"An error occurred while handling payment failure: {exceptionMessage}"
-                });
-                })
-                .TransitionTo(BookingFailed)
-                .Finalize()
-            )
-            .TransitionTo(BookingFailed)
-            .Finalize()
-        );
-
-        // Confirm booking
-        During(ConfirmingTickets,
-            When(BookingConfirmedEvent)
-            .Then(context => _logger.LogInformation("Booking confirmed for BookingId: {BookingId}", context.Saga.BookingId))
-            .TransitionTo(BookingCompleted)
-            .Finalize(),
-
-            When(BookingFailedEvent)
-            .Then(context => _logger.LogWarning("Booking failed for BookingId: {BookingId}", context.Saga.BookingId))
-            .TransitionTo(BookingFailed)
-            .Finalize(),
-
-            // Add handler for duplicate/delayed PaymentProcessedEvent
-            When(PaymentProcessedEvent)
-                .Then(context => _logger.LogInformation("Received duplicate or delayed PaymentProcessedEvent for BookingId: {BookingId} in ConfirmingTickets state. Ignoring as payment is already processed.", context.Saga.BookingId)),
-
-            // Add new handler for PaymentFailedEvent to handle delayed messages
-            When(PaymentFailedEvent)
-                .Then(context => _logger.LogWarning("Received unexpected PaymentFailedEvent for BookingId: {BookingId} in ConfirmingTickets state. Handling as a failure.", context.Saga.BookingId))
-                .PublishAsync(context => context.Init<ReleaseTickets>(new
+                .PublishAsync(context => context.Init<ReserveTickets>(new
                 {
                     BookingId = context.Saga.BookingId,
                     EventId = context.Saga.EventId,
                     TicketIds = context.Saga.Tickets,
-                    Reason = "Payment failed after tickets were reserved."
+                    CustomerId = context.Saga.CustomerId ?? string.Empty
                 }))
-                .PublishAsync(context => context.Init<BookingFailedEvent>(new
-                {
-                    BookingId = context.Saga.BookingId,
-                    Reason = "Payment failed after tickets were reserved."
-                }))
-                .TransitionTo(BookingFailed)
+                .Then(c => _logger.LogInformation("ReserveTickets command published for BookingId: {BookingId}", c.Saga.BookingId))
+                .TransitionTo(Confirmed)
+
+            
+        );
+
+        During(Confirmed,
+            When(BookingFailed)
+                .Then(c => _logger.LogWarning("Booking failed at Confirmed state for BookingId: {BookingId}, Reason: {Reason}",
+                    c.Saga.BookingId, c.Message.Reason))
                 .Finalize()
         );
 

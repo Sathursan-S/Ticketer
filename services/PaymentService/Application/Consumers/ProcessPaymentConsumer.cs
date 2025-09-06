@@ -4,64 +4,76 @@ using SharedLibrary.Contracts.Events;
 using SharedLibrary.Contracts.Messages;
 using PaymentService.Application.Services;
 
-
 namespace PaymentService.Application.Consumers;
 
-public class ProcessPaymentConsumer(
-    IPaymentService _paymentService,
-    ILogger<ProcessPaymentConsumer> _logger
-    ) : IConsumer<ProcessPayment>
+public class ProcessPaymentConsumer : IConsumer<ProcessPayment>
 {
+    private readonly IPaymentService _paymentService;
+    private readonly ILogger<ProcessPaymentConsumer> _logger;
+
+    public ProcessPaymentConsumer(IPaymentService paymentService, ILogger<ProcessPaymentConsumer> logger)
+    {
+        _paymentService = paymentService;
+        _logger = logger;
+    }
+
     public async Task Consume(ConsumeContext<ProcessPayment> context)
     {
+        var message = context.Message;
+
         try
         {
-            _logger.LogInformation("Processing payment for BookingId: {BookingId}, CustomerId: {CustomerId}, Amount: {Amount}, PaymentMethod: {PaymentMethod}",
-                context.Message.BookingId, context.Message.CustomerId, context.Message.Amount, context.Message.PaymentMethod);
+            _logger.LogInformation(
+                "Processing payment for BookingId: {BookingId}, CustomerId: {CustomerId}, Amount: {Amount}, PaymentMethod: {PaymentMethod}",
+                message.BookingId, message.CustomerId, message.Amount, message.PaymentMethod);
 
-            ProcessPaymentDto processPaymentRequest = new ProcessPaymentDto
+            var processPaymentRequest = new ProcessPaymentDto
             {
-                BookingId = context.Message.BookingId,
-                CustomerId = context.Message.CustomerId,
-                Amount = context.Message.Amount,
-                PaymentMethod = context.Message.PaymentMethod
+                BookingId = message.BookingId,
+                CustomerId = message.CustomerId,
+                Amount = message.Amount,
+                PaymentMethod = message.PaymentMethod
             };
 
-            PaymentResultDto paymentResult = await _paymentService.ProcessPaymentAsync(processPaymentRequest);
+            var paymentResult = await _paymentService.ProcessPaymentAsync(processPaymentRequest);
 
             if (paymentResult.IsSuccess)
             {
-                _logger.LogInformation("Payment processed successfully for BookingId: {BookingId}", context.Message.BookingId);
+                _logger.LogInformation("Payment processed successfully for BookingId: {BookingId}", message.BookingId);
+
                 await context.Publish(new PaymentProcessedEvent
                 {
-                    BookingId = context.Message.BookingId,
-                    CustomerId = context.Message.CustomerId,
+                    BookingId = message.BookingId,
+                    CustomerId = message.CustomerId,
                     Amount = paymentResult.Amount,
-                    PaymentMethod = context.Message.PaymentMethod,
+                    PaymentMethod = message.PaymentMethod,
                     PaymentIntentId = paymentResult.PaymentIntentId
                 });
             }
             else
             {
-                _logger.LogWarning("Payment processing failed for BookingId: {BookingId}", context.Message.BookingId);
+                _logger.LogWarning("Payment failed for BookingId: {BookingId}, Reason: {Reason}", 
+                    message.BookingId, paymentResult.ErrorMessage);
+
                 await context.Publish(new PaymentFailedEvent
                 {
-                    BookingId = context.Message.BookingId,
+                    BookingId = message.BookingId,
                     PaymentIntentId = paymentResult.PaymentIntentId,
                     Reason = paymentResult.ErrorMessage ?? "Payment processing failed"
                 });
             }
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            _logger.LogError(e, "An error occurred while processing payment for BookingId: {BookingId}", context.Message.BookingId);
+            _logger.LogError(ex, "Unexpected error while processing payment for BookingId: {BookingId}", message.BookingId);
 
             await context.Publish(new PaymentFailedEvent
             {
-                BookingId = context.Message.BookingId,
-                Reason = $"An error occurred while processing payment: {e.Message}"
+                BookingId = message.BookingId,
+                Reason = $"Unexpected error: {ex.Message}"
             });
 
+            // You may rethrow if you want MassTransit retry policy to kick in
             throw;
         }
     }
