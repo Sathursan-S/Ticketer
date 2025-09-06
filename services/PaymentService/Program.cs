@@ -1,4 +1,5 @@
 using PaymentService.Application.Services;
+using PaymentService.Application.Gateways;
 using MassTransit;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -16,6 +17,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<RabbitMqSettings>(
     builder.Configuration.GetSection("RabbitMq"));
 
+// Configure Stripe settings
+builder.Services.Configure<StripeSettings>(
+    builder.Configuration.GetSection("Stripe"));
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -25,7 +30,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Payment Service API",
         Version = "v1",
-        Description = "API for managing payments",
+        Description = "API for managing payments, refunds, and webhooks with multiple payment gateways",
         Contact = new OpenApiContact
         {
             Name = "Support",
@@ -60,7 +65,11 @@ builder.Services.AddMassTransit(config =>
     });
 });
 
-builder.Services.AddSingleton<IPaymentService, PaymentService.Application.Services.PaymentService>();
+// Register payment gateways
+builder.Services.AddScoped<IPaymentGateway, StripePaymentGateway>();
+
+// Register payment service
+builder.Services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
 
 // Add health checks
 builder.Services.AddHealthChecks();
