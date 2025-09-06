@@ -316,6 +316,7 @@ curl -s http://localhost:5266/health | jq .
 curl -s http://localhost:16686/api/services | jq .
 ```
 
+<<<<<<< HEAD
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -324,6 +325,8 @@ curl -s http://localhost:16686/api/services | jq .
 4. Commit your changes: `git commit -m 'Add amazing feature'`
 5. Push to the branch: `git push origin feature/amazing-feature`
 6. Open a Pull Request
+=======
+>>>>>>> origin/copilot/vscode1757182545569
 
 ## 📚 Additional Resources
 
@@ -334,6 +337,9 @@ curl -s http://localhost:16686/api/services | jq .
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [ASP.NET Core Documentation](https://docs.microsoft.com/en-us/aspnet/core/)
 
+<<<<<<< HEAD
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+=======
+>>>>>>> origin/copilot/vscode1757182545569

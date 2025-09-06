@@ -19,7 +19,7 @@ public class PaymentService(
             BookingId = dto.BookingId,
             PaymentMethod = dto.PaymentMethod,
             CustomerId = dto.CustomerId,
-            IsSuccess = false,
+            IsSuccess = true,
         };
         return Task.FromResult(result);
     }
